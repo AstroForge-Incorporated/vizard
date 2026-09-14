@@ -33,15 +33,34 @@ public class CustomVectorHUD : MonoBehaviour
         line.useWorldSpace = false;
         Vector3 tip = Vector3.forward;
         Vector3 headBase = (1 - HeadLengthFraction) * tip;
-        line.positionCount = 9;
+        line.positionCount = 5;
         line.SetPositions(new[] {
             Vector3.zero, tip,
             headBase + HeadRadiusFraction * Vector3.right, tip,
-            headBase - HeadRadiusFraction * Vector3.right, tip,
-            headBase + HeadRadiusFraction * Vector3.up, tip,
-            headBase - HeadRadiusFraction * Vector3.up
+            headBase - HeadRadiusFraction * Vector3.right
         });
         line.enabled = false;
+    }
+
+    private void OnEnable()
+    {
+        Camera.onPreCull += OrientArrowhead;
+    }
+
+    private void OrientArrowhead(Camera camera)
+    {
+        if (!line.enabled) return;
+        // Keep the two sides of the V visible from each camera before culling.
+        Vector3 viewDirection = camera.orthographic
+            ? -transform.InverseTransformDirection(camera.transform.forward)
+            : transform.InverseTransformPoint(camera.transform.position) - Vector3.forward;
+        Vector3 side = Vector3.Cross(Vector3.forward, viewDirection).normalized;
+        if (side == Vector3.zero)
+            side = transform.InverseTransformDirection(camera.transform.right);
+        side *= HeadRadiusFraction;
+        Vector3 headBase = (1 - HeadLengthFraction) * Vector3.forward;
+        line.SetPosition(2, headBase + side);
+        line.SetPosition(4, headBase - side);
     }
 
     public GameObject Initialize(int scIndex, int vectorIndex, bool showLabel)
@@ -128,6 +147,7 @@ public class CustomVectorHUD : MonoBehaviour
 
     private void OnDisable()
     {
+        Camera.onPreCull -= OrientArrowhead;
         if (label != null) label.SetActive(false);
     }
 
