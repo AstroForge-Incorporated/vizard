@@ -114,6 +114,9 @@ message VizMessage{
     }
 
     message GenericSensor{ //ONLY REQUIRED IF GENERIC SENSOR HUD DESIRED
+        // Custom vectors: exactly fieldOfView=[0] selects a thin arrow (no sensor cone).
+        // Send position, normalVector (body frame), positive size [m], color, and isHidden every frame.
+        // Keep entry indices fixed; zero/non-finite directions hide the arrow. The rules below apply to sensors.
         //FIELDS 2-4, 7-9 ONLY IN FIRST MESSAGE
         //FIELDS 5,6 OPTIONAL, BUT CAN BE UPDATED IN EVERY MESSAGE
         repeated double position = 2;      // [m] position of the sensor in body frame

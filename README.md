@@ -5,6 +5,51 @@ Vizard is the companion visualization application for the Basilisk spacecraft si
 
 This repository contains the open source Unity Vizard project and documentation and supports building Vizard applications for MacOS, Windows, and Linux platforms. 
 
+Custom direction vectors
+-----------------------------------------------------------
+Vizard renders a `GenericSensor` with exactly `fieldOfView = [0.0]` as a thin
+arrow instead of a sensor cone. This uses the existing Basilisk wire format and
+does not require rebuilding Basilisk. Positive-FOV sensors retain their usual
+rendering.
+
+Each vector belongs to a spacecraft. Provide these fields in **every frame**:
+
+- `position`: three spacecraft body-frame coordinates, in meters.
+- `normalVector`: three body-frame direction components; Vizard normalizes them.
+- `size`: positive arrow length in meters (independent of vector magnitude).
+- `color`: RGBA integers from 0 to 255.
+- `isHidden`: hide/show the arrow. Zero or non-finite directions are also hidden.
+
+Set `label` and `fieldOfView = [0.0]` when creating the vector. Include its entry
+in the first message and keep the `genericSensors` order and count fixed during
+playback or streaming. Position, direction, size, color, and visibility can be
+updated on subsequent frames, including when seeking backwards in a recording.
+Arrows follow spacecraft attitude and display scale, and are hidden in sprite
+mode. Use the spacecraft's **Custom Vectors / HUD** toggle to show/hide them;
+their labels share the **Generic Sensor Labels** setting.
+
+For example, retain this object and pass it in `genericSensorList` to
+`vizSupport.enableUnityVisualization`:
+
+```python
+from Basilisk.simulation import vizInterface
+
+arrow = vizInterface.GenericSensor()
+arrow.fieldOfView = vizInterface.DoubleVector([0.0])
+arrow.r_SB_B = [0.0, 0.0, 0.0]
+arrow.normalVector = [1.0, 0.0, 0.0]
+arrow.size = 10.0  # meters
+arrow.color = vizInterface.IntVector([0, 255, 255, 255])
+arrow.label = "Custom direction"
+arrow.genericSensorCmd = 1
+# Before each visualization tick, update arrow.normalVector in body coordinates.
+```
+
+Build Vizard with these source changes to display the arrows. Previous builds
+interpret the entries as zero-angle sensor cones. `TestCustomVectorHUD` is part
+of the existing test-scene runner and checks coordinate conversion, dynamic
+updates, hidden/zero/invalid vectors, and sprite visibility.
+
 VizardUnityProject
 -----------------------------------------------------------
 Vizard's Unity project.

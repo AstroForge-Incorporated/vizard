@@ -39,5 +39,6 @@ public class TestRunner : MonoBehaviour
         testResultsWindow.text += testLibrary.GetComponent<TestMessageList>().RunMessageListTestSuite();
         testResultsWindow.text += testLibrary.GetComponent<TestOrbitVectorMath>().RunOrbitVectorMathTestSuite();
         testResultsWindow.text += testLibrary.GetComponent<TestTruePathTrajectory>().RunTruePathTrajectoryTestSuite();
+        testResultsWindow.text += TestCustomVectorHUD.Run();
     }
 }

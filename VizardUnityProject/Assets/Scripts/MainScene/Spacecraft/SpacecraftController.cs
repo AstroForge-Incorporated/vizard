@@ -890,14 +890,33 @@ public class SpacecraftController : MonoBehaviour {
             gsGroup.transform.localScale = new Vector3(1f,1f,1f);
             HUDcontainers[HUDtype] = gsGroup;
 
+            GameObject vectorGroup = null;
+            int sensorCount = 0;
+
             for (int i = 0; i < gsCount; i++){
+                if (CustomVectorHUD.IsCustomVector(MessageList.FirstMessage.Spacecraft[spacecraftIndex].GenericSensors[i]))
+                {
+                    if (vectorGroup == null)
+                    {
+                        vectorGroup = new GameObject("CustomVectors");
+                        vectorGroup.transform.SetParent(transform, false);
+                        HUDcontainers["CustomVectors"] = vectorGroup;
+                    }
+                    GameObject arrow = Instantiate(Resources.Load<GameObject>("Prefabs/SpacecraftHUD/LineObject"), vectorGroup.transform, false);
+                    allMyLabels.Add(arrow.AddComponent<CustomVectorHUD>().Initialize(spacecraftIndex, i, labelsOn));
+                    continue;
+                }
+                sensorCount++;
                 GameObject gsHUDUnit = Instantiate(Resources.Load("Prefabs/SpacecraftHUD/GenericSensorHUD")as GameObject, gsGroup.transform, true);
                 GameObject gsHUDUnitLabel = gsHUDUnit.GetComponent<GenericSensorHUDMethods>().InitializeGenericSensorHUDUnit(spacecraftIndex,  i, meshDimension, labelsOn);
 
                 allMyLabels.Add(gsHUDUnitLabel);
             }
 
-            VizardGUISettings.PanelViewMgr.AddHUDToggle(spacecraftName, "Generic Sensors", "HUD", gsGroup, false, true, parentSpacecraftName);
+            if (sensorCount > 0)
+                VizardGUISettings.PanelViewMgr.AddHUDToggle(spacecraftName, "Generic Sensors", "HUD", gsGroup, false, true, parentSpacecraftName);
+            if (vectorGroup != null)
+                VizardGUISettings.PanelViewMgr.AddHUDToggle(spacecraftName, "Custom Vectors", "HUD", vectorGroup, false, true, parentSpacecraftName);
         }
     }
 

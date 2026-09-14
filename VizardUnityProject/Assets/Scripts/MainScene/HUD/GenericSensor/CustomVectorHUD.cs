@@ -1,0 +1,138 @@
+using System.Linq;
+using UnityEngine;
+using GenericSensor = VizProtobufferMessage.VizMessage.Types.GenericSensor;
+
+/// <summary>
+/// A zero-FOV GenericSensor is a custom arrow: body-frame position [m] and
+/// direction, size [m], RGBA color, and visibility may change every message.
+/// Keep the sensor index fixed for the duration of the recording/stream.
+/// </summary>
+[RequireComponent(typeof(LineRenderer))]
+public class CustomVectorHUD : MonoBehaviour
+{
+    private const float ShaftWidthFraction = 0.002f;
+    private const float HeadLengthFraction = 0.12f;
+    private const float HeadRadiusFraction = 0.04f;
+    private LineRenderer line;
+    private Material lineMaterial;
+    private GameObject label;
+    private int spacecraftIndex;
+    private int sensorIndex;
+    private bool inSpriteMode;
+    private bool visible;
+
+    public static bool IsCustomVector(GenericSensor message)
+    {
+        return message.FieldOfView.Count == 1 && message.FieldOfView[0] == 0;
+    }
+
+    private void Awake()
+    {
+        line = GetComponent<LineRenderer>();
+        lineMaterial = line.material;
+        line.useWorldSpace = false;
+        Vector3 tip = Vector3.forward;
+        Vector3 headBase = (1 - HeadLengthFraction) * tip;
+        line.positionCount = 9;
+        line.SetPositions(new[] {
+            Vector3.zero, tip,
+            headBase + HeadRadiusFraction * Vector3.right, tip,
+            headBase - HeadRadiusFraction * Vector3.right, tip,
+            headBase + HeadRadiusFraction * Vector3.up, tip,
+            headBase - HeadRadiusFraction * Vector3.up
+        });
+        line.enabled = false;
+    }
+
+    public GameObject Initialize(int scIndex, int vectorIndex, bool showLabel)
+    {
+        spacecraftIndex = scIndex;
+        sensorIndex = vectorIndex;
+        var spacecraft = MessageList.FirstMessage.Spacecraft[scIndex];
+        var message = spacecraft.GenericSensors[vectorIndex];
+        name = string.IsNullOrEmpty(message.Label) ? $"Vector {vectorIndex}" : message.Label;
+        label = LabelMaker.CreateLabel(name, spacecraft.SpacecraftName, gameObject,
+            new Vector2(10, -10), "GenericSensors");
+        ApplyMessage(message);
+        label.SetActive(showLabel && visible);
+        return label;
+    }
+
+    private void FixedUpdate()
+    {
+        var sensors = MessageList.CurrentMessage.Spacecraft[spacecraftIndex].GenericSensors;
+        if (sensorIndex < sensors.Count)
+        {
+            ApplyMessage(sensors[sensorIndex]);
+        }
+        else
+        {
+            visible = false;
+            UpdateVisibility();
+        }
+    }
+
+    public void ApplyMessage(GenericSensor message)
+    {
+        visible = !message.IsHidden && message.Position.Count == 3
+            && message.NormalVector.Count == 3 && message.Size > 0
+            && message.Size <= float.MaxValue;
+        if (visible)
+        {
+            Vector3 position = OrbitVectorMath.ReturnVector3(
+                OrbitVectorMath.TransformFromBSKCStoUnity(message.Position.ToArray()));
+            Vector3 direction = OrbitVectorMath.ReturnVector3(
+                OrbitVectorMath.TransformFromBSKCStoUnity(message.NormalVector.ToArray()));
+            visible = IsFinite(position) && IsFinite(direction) && direction.sqrMagnitude > 0;
+            if (visible)
+            {
+                transform.localPosition = position;
+                transform.localRotation = Quaternion.LookRotation(direction.normalized);
+                transform.localScale = (float)message.Size * Vector3.one;
+                if (message.Color.Count >= 4)
+                {
+                    Color color = new Color(message.Color[0] / 255f, message.Color[1] / 255f,
+                        message.Color[2] / 255f, message.Color[3] / 255f);
+                    lineMaterial.color = color;
+                    line.startColor = color;
+                    line.endColor = color;
+                }
+            }
+        }
+        UpdateVisibility();
+    }
+
+    private static bool IsFinite(Vector3 value)
+    {
+        return !float.IsNaN(value.sqrMagnitude) && !float.IsInfinity(value.sqrMagnitude);
+    }
+
+    private void LateUpdate()
+    {
+        // LineRenderer widths are world-space, while its vertices are local.
+        line.startWidth = line.endWidth = ShaftWidthFraction * transform.lossyScale.x;
+    }
+
+    private void UpdateVisibility()
+    {
+        line.enabled = visible && !inSpriteMode;
+        if (label != null)
+            label.SetActive(line.enabled && VizardGUISettings.ShowGenericSensorLabels);
+    }
+
+    public void ConfigureHUDForSpriteMode(bool spriteOn)
+    {
+        inSpriteMode = spriteOn;
+        UpdateVisibility();
+    }
+
+    private void OnDisable()
+    {
+        if (label != null) label.SetActive(false);
+    }
+
+    private void OnDestroy()
+    {
+        Destroy(lineMaterial);
+    }
+}
