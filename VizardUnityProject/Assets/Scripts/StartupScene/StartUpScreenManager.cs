@@ -143,6 +143,12 @@ public class StartUpScreenManager : MonoBehaviour
 
             if (args[i] == "-loadFile")
             {
+                if (i + 1 >= args.Length)
+                {
+                    errorText.color = Color.red;
+                    errorText.text = "Usage: -loadFile <path to recording.bin>";
+                    break;
+                }
                 string filepathArg = args[i + 1];
                 filepathText.text = filepathArg;
                 SetDataManagerSettingsAndUpdateToggles(false, false, false);

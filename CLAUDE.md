@@ -37,6 +37,9 @@ kill another Editor or delete its lock file.
   Package resolution, native `-importPackage`, and building use separate Editor
   invocations. Do not replace native import with `AssetDatabase.ImportPackage`
   inside a batch execute method: it queues work that `-quit` can cancel.
+- Compile the AppKit file-picker/drop plugin from `native/macos/VizardFileAccess.m`
+  with `xcrun clang`, import it for the macOS player only, and include it in the app.
+  Apple Command Line Tools are required. Generated plugin bundles are ignored.
 - Build Apple silicon ARM64 with the existing Mono backend, startup scene first,
   followed by the normal main scene. The optional VR scene is excluded.
 - Generate the base Addressables catalog before the player build. Even without
@@ -82,7 +85,7 @@ alone does not verify rendering. Start through the welcome screen:
 ./build_macos.sh --run
 ```
 
-Choose `Select`, open a Basilisk scenario `.bin` recording, then choose
+Choose `Select` for the native macOS picker, open a Basilisk scenario `.bin` recording, then choose
 `Start Visualization`. Supply your own recording; none is bundled with this
 build setup.
 
@@ -109,3 +112,10 @@ a change. Do not clear caches routinely or treat an older `.app` as a new build.
 Keep changes local unless explicitly asked to commit or push. This workflow does
 not purchase services, install other optional bundles or VR support, or notarize an
 application for distribution.
+
+The native drop handler uses an NSWindow delegate proxy: preserve Unity's window
+callbacks when changing it. Only one regular `.bin` file is accepted per drop;
+recording drops must not interrupt live streaming. `DataManager.LoadFile()` needs
+the main scene and clears it before parsing, so validate the first two timestamped
+frames before calling it from an external drop. Startup drops use the welcome
+screen's loader and clear any socket address.

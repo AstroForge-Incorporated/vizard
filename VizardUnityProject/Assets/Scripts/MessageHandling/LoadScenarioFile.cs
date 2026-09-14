@@ -46,6 +46,7 @@ public class LoadScenarioFile : MonoBehaviour
         if (Application.platform == RuntimePlatform.LinuxPlayer)
         {
             fileChooser.OpenFileBrowser(filepathText, "*."+fileExtension, true);
+            return;
         }
         else
         {
@@ -54,8 +55,10 @@ public class LoadScenarioFile : MonoBehaviour
         }
 #else
         fileChooser.OpenFileBrowser(filepathText, "*."+fileExtension, true);
+        return;
 #endif
         
+#if USE_NATIVE_FILE_BROWSER
         if (!String.IsNullOrEmpty(filepathText.text))
         {
             string oldFilePath = DataManager.FilePath;
@@ -71,6 +74,7 @@ public class LoadScenarioFile : MonoBehaviour
             }
 
         }
+#endif
     }
 
 }

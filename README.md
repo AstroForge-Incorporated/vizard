@@ -5,6 +5,32 @@ Vizard is the companion visualization application for the Basilisk spacecraft si
 
 This repository contains the open source Unity Vizard project and documentation and supports building Vizard applications for MacOS, Windows, and Linux platforms. 
 
+Opening recordings on macOS
+-----------------------------------------------------------
+Use **Select** to open the native macOS file picker. Resize it, search in it,
+or press **Command–Shift–G** and paste a folder path to jump into a deep directory.
+The native picker also handles model and texture selection. It is built from
+AppKit source in this repository; the optional proprietary file-browser asset
+is not required.
+
+You can drop one `.bin` recording from Finder onto the Vizard window, either at
+the welcome screen or during file playback, to open it immediately. During a live
+connection, use the new-instance command below to view a recording separately.
+Drops on the Dock icon are not supported.
+
+The existing command-line option also bypasses the picker:
+
+```bash
+/Applications/Vizard.app/Contents/MacOS/Vizard -loadFile "/full/path/to/recording.bin"
+```
+
+Type the command through `-loadFile `, then drag a file from Finder into Terminal
+to insert its escaped path. For an app-style launch in a new instance:
+
+```bash
+open -n /Applications/Vizard.app --args -loadFile "/full/path/to/recording.bin"
+```
+
 Custom direction vectors
 -----------------------------------------------------------
 Vizard renders a `GenericSensor` with exactly `fieldOfView = [0.0]` as a thin

@@ -89,3 +89,6 @@ crashlytics-build.properties
 #Depth Test Reference Image
 CustomCamera_128x128_DEPTH_TEST.png
 CustomCamera_128x128_DEPTH_TEST.png.meta
+
+# Built from native/macos by BuildMac before player compilation.
+/Assets/Plugins/VizardFileAccess.bundle*

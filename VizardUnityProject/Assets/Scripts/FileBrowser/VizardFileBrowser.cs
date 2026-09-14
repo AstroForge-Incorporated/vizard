@@ -53,6 +53,15 @@ public class VizardFileBrowser : MonoBehaviour
         selectedFileText = outText;
         desiredExtensionFilter = extString;
         isReload = isScenarioReload;
+#if UNITY_STANDALONE_OSX && !UNITY_EDITOR
+        string path = MacFileAccess.OpenFile(DataManager.LastDirectory, extString);
+        if (!string.IsNullOrEmpty(path))
+        {
+            selectedFileText.text = path;
+            if (isReload) LoadNewScenarioFile();
+        }
+        return;
+#else
         fileBrowserPanel.SetActive(true);
         fileBrowserPanel.transform.SetAsLastSibling();
         if (firstUse)
@@ -66,6 +75,7 @@ public class VizardFileBrowser : MonoBehaviour
         }
 
         RefreshView();
+#endif
     }
 
     private void RefreshView()
