@@ -43,6 +43,7 @@ public class TestOrbitVectorMath : MonoBehaviour
         Test_TransposeMatrix();
         Test_Dot3x3Matrix();
         Test_CalculateHillFrame();
+        Test_CalculateHillFrameDegenerateStates();
         Test_CalculateVelocityFrame();
         Test_TransformFromUnityCStoBSK();
         Test_TransformFromBSKCStoUnity();
@@ -208,6 +209,35 @@ public class TestOrbitVectorMath : MonoBehaviour
         Assert.AreEqual(hi[0],result[6]);
         Assert.AreEqual(hi[1],result[7]);
         Assert.AreEqual(hi[2],result[8]);
+    }
+
+    private void Test_CalculateHillFrameDegenerateStates()
+    {
+        double[] identity = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+        double[] previousFrame = {1, 0, 0, 0, 0, 1, 0, -1, 0};
+        double[][] positions = {
+            new double[] {10, 0, 0}, new double[] {10, 0, 0},
+            new double[] {10, 0, 0}, new double[] {0, 0, 0}
+        };
+        double[][] velocities = {
+            new double[] {0, 0, 0}, new double[] {2, 0, 0},
+            new double[] {2, 1e-14, 0}, new double[] {0, 2, 0}
+        };
+        for (int state = 0; state < positions.Length; state++)
+        {
+            double[] initial = OrbitVectorMath.CalculateHillFrame(positions[state], velocities[state]);
+            double[] retained = OrbitVectorMath.CalculateHillFrame(positions[state], velocities[state], previousFrame);
+            for (int axis = 0; axis < 9; axis++)
+            {
+                Assert.AreEqual(identity[axis], initial[axis]);
+                Assert.AreEqual(previousFrame[axis], retained[axis]);
+            }
+        }
+
+        double[] resumed = OrbitVectorMath.CalculateHillFrame(new double[] {10, 0, 0},
+            new double[] {0, 2, 0}, previousFrame);
+        for (int axis = 0; axis < 9; axis++)
+            Assert.AreEqual(identity[axis], resumed[axis]);
     }
 
     private void Test_CalculateVelocityFrame()

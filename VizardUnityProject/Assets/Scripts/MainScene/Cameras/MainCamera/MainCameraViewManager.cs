@@ -523,7 +523,7 @@ public class MainCameraViewManager : MonoBehaviour
         double[] vvec = OrbitVectorMath.Subtract(camTgtBodyVelocityBSK, camTgtParentVelocityBSK);
 
         //Calculate current hill frame for camera target spacecraft
-        HillFrame = OrbitVectorMath.CalculateHillFrame(rvec, vvec);
+        HillFrame = OrbitVectorMath.CalculateHillFrame(rvec, vvec, HillFrame);
     }
 
     /// <summary>

@@ -117,9 +117,14 @@ public static class OrbitVectorMath
 		return RFMatrix;
 	}
 	
-	public static double[] CalculateHillFrame(double[] rvec, double[] vvec){
+	// At rest or during radial motion, the orbital plane is undefined. Keep a
+	// supplied display frame, or use inertial axes before a valid frame exists.
+	public static double[] CalculateHillFrame(double[] rvec, double[] vvec, double[] previousFrame = null){
 		double[] ri = Normalized(rvec);
-		double[] hi = Normalized(Cross(ri, vvec));
+		double[] normal = Cross(ri, vvec);
+		if (!(Magnitude(normal) > EPS * Magnitude(vvec)))
+			return previousFrame ?? new double[] {1, 0, 0, 0, 1, 0, 0, 0, 1};
+		double[] hi = Normalized(normal);
 		double[] ti = Normalized(Cross(hi,ri));
 		double[] HFMatrix = {
 			ri[0], ri[1], ri[2],
