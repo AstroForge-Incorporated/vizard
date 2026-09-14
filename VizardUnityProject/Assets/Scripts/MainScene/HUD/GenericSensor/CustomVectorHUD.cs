@@ -1,10 +1,11 @@
 using System.Linq;
+using TMPro;
 using UnityEngine;
 using GenericSensor = VizProtobufferMessage.VizMessage.Types.GenericSensor;
 
 /// <summary>
 /// A zero-FOV GenericSensor is a custom arrow: body-frame position [m] and
-/// direction, size [m], RGBA color, and visibility may change every message.
+/// direction, size [m], RGBA color, label text, and visibility may change every message.
 /// Keep the sensor index fixed for the duration of the recording/stream.
 /// </summary>
 [RequireComponent(typeof(LineRenderer))]
@@ -15,11 +16,12 @@ public class CustomVectorHUD : MonoBehaviour
     private const float HeadRadiusFraction = 0.04f;
     private LineRenderer line;
     private Material lineMaterial;
-    private GameObject label;
+    private TextMeshProUGUI label;
     private int spacecraftIndex;
     private int sensorIndex;
     private bool inSpriteMode;
     private bool visible;
+    private bool labelsEnabled;
 
     public static bool IsCustomVector(GenericSensor message)
     {
@@ -65,16 +67,22 @@ public class CustomVectorHUD : MonoBehaviour
 
     public GameObject Initialize(int scIndex, int vectorIndex, bool showLabel)
     {
+        labelsEnabled = showLabel;
         spacecraftIndex = scIndex;
         sensorIndex = vectorIndex;
         var spacecraft = MessageList.FirstMessage.Spacecraft[scIndex];
         var message = spacecraft.GenericSensors[vectorIndex];
         name = string.IsNullOrEmpty(message.Label) ? $"Vector {vectorIndex}" : message.Label;
-        label = LabelMaker.CreateLabel(name, spacecraft.SpacecraftName, gameObject,
-            new Vector2(10, -10), "GenericSensors");
+        var labelAnchor = new GameObject("LabelAnchor");
+        labelAnchor.transform.SetParent(transform, false);
+        labelAnchor.transform.localPosition = Vector3.forward;
+        label = LabelMaker.CreateLabel(message.Label, spacecraft.SpacecraftName, labelAnchor,
+            new Vector2(10, -10), "GenericSensors", 0).GetComponent<TextMeshProUGUI>();
+        label.richText = false;
+        // The Labels panel controls this group, including recordings with wing bodies.
+        if (showLabel) VizardGUISettings.ShowGenericSensorLabels = true;
         ApplyMessage(message);
-        label.SetActive(showLabel && visible);
-        return label;
+        return label.gameObject;
     }
 
     private void FixedUpdate()
@@ -115,9 +123,11 @@ public class CustomVectorHUD : MonoBehaviour
                     lineMaterial.color = color;
                     line.startColor = color;
                     line.endColor = color;
+                    if (label != null) label.color = color;
                 }
             }
         }
+        if (label != null) label.text = message.Label;
         UpdateVisibility();
     }
 
@@ -136,7 +146,8 @@ public class CustomVectorHUD : MonoBehaviour
     {
         line.enabled = visible && !inSpriteMode;
         if (label != null)
-            label.SetActive(line.enabled && VizardGUISettings.ShowGenericSensorLabels);
+            label.gameObject.SetActive(line.enabled && labelsEnabled && !string.IsNullOrEmpty(label.text)
+                && VizardGUISettings.ShowGenericSensorLabels);
     }
 
     public void ConfigureHUDForSpriteMode(bool spriteOn)
@@ -148,7 +159,7 @@ public class CustomVectorHUD : MonoBehaviour
     private void OnDisable()
     {
         Camera.onPreCull -= OrientArrowhead;
-        if (label != null) label.SetActive(false);
+        if (label != null) label.gameObject.SetActive(false);
     }
 
     private void OnDestroy()

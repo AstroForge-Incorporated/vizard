@@ -18,15 +18,19 @@ Each vector belongs to a spacecraft. Provide these fields in **every frame**:
 - `normalVector`: three body-frame direction components; Vizard normalizes them.
 - `size`: positive arrow length in meters (independent of vector magnitude).
 - `color`: RGBA integers from 0 to 255.
+- `label`: text at the arrow tip; an empty string hides the text.
 - `isHidden`: hide/show the arrow. Zero or non-finite directions are also hidden.
 
-Set `label` and `fieldOfView = [0.0]` when creating the vector. Include its entry
+Set `fieldOfView = [0.0]` when creating the vector. Include its entry
 in the first message and keep the `genericSensors` order and count fixed during
-playback or streaming. Position, direction, size, color, and visibility can be
+playback or streaming. Position, direction, size, color, label text, and visibility can be
 updated on subsequent frames, including when seeking backwards in a recording.
 Arrows follow spacecraft attitude and display scale, and are hidden in sprite
 mode. Use the spacecraft's **Custom Vectors / HUD** toggle to show/hide them;
-their labels share the **Generic Sensor Labels** setting.
+their labels share the **Generic Sensor Labels** setting. Nonempty labels appear
+by default, in the arrow color, unless the spacecraft instrument setting
+`showGenericSensorLabels = -1` disables them. Length is supplied through `size`;
+set it explicitly when using Basilisk directly.
 
 For example, retain this object and pass it in `genericSensorList` to
 `vizSupport.enableUnityVisualization`:
@@ -38,7 +42,7 @@ arrow = vizInterface.GenericSensor()
 arrow.fieldOfView = vizInterface.DoubleVector([0.0])
 arrow.r_SB_B = [0.0, 0.0, 0.0]
 arrow.normalVector = [1.0, 0.0, 0.0]
-arrow.size = 10.0  # meters
+arrow.size = 1.0  # meters
 arrow.color = vizInterface.IntVector([0, 255, 255, 255])
 arrow.label = "Custom direction"
 arrow.genericSensorCmd = 1

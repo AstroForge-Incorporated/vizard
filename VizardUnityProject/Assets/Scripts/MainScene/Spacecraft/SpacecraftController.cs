@@ -903,7 +903,9 @@ public class SpacecraftController : MonoBehaviour {
                         HUDcontainers["CustomVectors"] = vectorGroup;
                     }
                     GameObject arrow = Instantiate(Resources.Load<GameObject>("Prefabs/SpacecraftHUD/LineObject"), vectorGroup.transform, false);
-                    allMyLabels.Add(arrow.AddComponent<CustomVectorHUD>().Initialize(spacecraftIndex, i, labelsOn));
+                    // Custom arrows show their supplied text unless explicitly disabled.
+                    bool vectorLabelsOn = myGUIInstrumentSettings == null || myGUIInstrumentSettings.ShowGenericSensorLabels != -1;
+                    allMyLabels.Add(arrow.AddComponent<CustomVectorHUD>().Initialize(spacecraftIndex, i, vectorLabelsOn));
                     continue;
                 }
                 sensorCount++;
