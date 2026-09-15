@@ -307,11 +307,11 @@ public class StartUpScreenManager : MonoBehaviour
         SaveUserData();
         errorText.color = Color.blue;
 
+        directCommController.GetComponent<VizInputAccumulator>().enabled =
+            DataManager.IsLiveSim && !DataManager.SocketIsReceiveOnly;
         if (DataManager.IsLiveSim)
         {
             errorText.text = "Please stand by. Establishing communication...";
-            directCommController.transform.GetComponent<VizInputAccumulator>().enabled =
-                !DataManager.SocketIsReceiveOnly;
 
             if (!directCommController.StartCommunication(DataManager.SocketAddress))
             {
@@ -434,6 +434,35 @@ public class StartUpScreenManager : MonoBehaviour
             if (error == null)
             {
                 label.text = "Preparing visualization…";
+                var startupScene = gameObject.scene;
+                var loadingCanvas = errorText.canvas;
+                loadingCanvas.sortingOrder = short.MaxValue;
+                // Keep the overlay alive while the main scene initializes. Loading
+                // additively also avoids Unity scanning the entire recording heap
+                // for unused assets during a single-scene replacement.
+                var startupRoots = startupScene.GetRootGameObjects();
+                foreach (var root in startupRoots)
+                {
+                    foreach (var camera in root.GetComponentsInChildren<Camera>())
+                        camera.gameObject.SetActive(false);
+                    foreach (var events in root.GetComponentsInChildren<UnityEngine.EventSystems.EventSystem>())
+                        events.gameObject.SetActive(false);
+                }
+                yield return null;
+                var sceneLoad = SceneManager.LoadSceneAsync(DataManager.MainSceneToLoad, LoadSceneMode.Additive);
+                while (!sceneLoad.isDone) yield return null;
+                var mainScene = SceneManager.GetSceneByName(DataManager.MainSceneToLoad);
+                SceneManager.SetActiveScene(mainScene);
+                // Awake can create root objects before the loaded scene can become active.
+                foreach (var root in startupScene.GetRootGameObjects())
+                    if (Array.IndexOf(startupRoots, root) < 0)
+                        SceneManager.MoveGameObjectToScene(root, mainScene);
+                while (!DataManager.FirstMessageDisplayed || !VizardGUISettings.AssetLoadingComplete)
+                {
+                    // This phase has no frame count; animate the bar as an activity indicator.
+                    fillRect.anchorMax = new Vector2(Mathf.PingPong(Time.unscaledTime, 1f), 1);
+                    yield return null;
+                }
                 yield return null;
             }
         }
@@ -449,7 +478,7 @@ public class StartUpScreenManager : MonoBehaviour
             errorText.text = $"Could not load recording: {error}";
             yield break;
         }
-        SceneManager.LoadScene(DataManager.MainSceneToLoad);
+        SceneManager.UnloadSceneAsync(gameObject.scene);
     }
 
     /// <summary>

@@ -226,6 +226,7 @@ private void BuildRelativeBodyData() //The relative body can be a spacecraft (tr
     {
         if(VizardGUISettings.TruePathLineMode==2) //spacecraft relative (Hill or velocity)
         {
+            SpacecraftStateUtilities.UpdateChiefSpacecraft(indexOfRelativeSpacecraft);
             rotatingFramePositions = SpacecraftStateUtilities.ChiefPositions;
             rotatingFrameDCMs = SpacecraftStateUtilities.ChiefDCMs;
         }

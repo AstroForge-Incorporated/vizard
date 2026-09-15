@@ -57,6 +57,18 @@ public class TestTruePathTrajectory : MonoBehaviour
         testLine2.truePathLinePlotter=testLine2.gameObject.AddComponent<TruePathLinePlotter>();
         testLine2.InitializeTruePathLine(spacecraftObject2, 1, true);
         
+        // Hidden trajectories must not scan the recording when the camera changes chief.
+        VizardGUISettings.TruePathLineMode = 2;
+        VizardGUISettings.SpacecraftRelativeOrbitMode = 1;
+        VizardGUISettings.TruePathLinesVisible = false;
+        VizardGUISettings.RelativeTruePathChangeCount++;
+        var previousPositions = SpacecraftStateUtilities.ChiefPositions;
+        var previousRotations = SpacecraftStateUtilities.ChiefDCMs;
+        SpacecraftStateUtilities.UpdateChiefSpacecraft(1);
+        Assert.AreEqual(1, VizardGUISettings.ChiefSpacecraftIndex);
+        Assert.AreEqual(previousPositions, SpacecraftStateUtilities.ChiefPositions);
+        Assert.AreEqual(previousRotations, SpacecraftStateUtilities.ChiefDCMs);
+
         //True Path Mode 1 (inertial, camera-target relative only)
         Test_TruePathMode1();
         

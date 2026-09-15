@@ -34,6 +34,7 @@ public static class SpacecraftStateUtilities{
 	
     public static double[,] ChiefPositions;
     public static double[,] ChiefDCMs;
+    private static int chiefHistoryIndex = -1;
     private static int relativeTruePathChangeCount = -2;
     private static int visibleHistoryUpdateCount = -2;
 
@@ -154,10 +155,17 @@ public static class SpacecraftStateUtilities{
 	
     public static void UpdateChiefSpacecraft(int newChiefIndex=-1, bool parentBodyChange=false)
     {
-        if ((VizardGUISettings.RelativeTruePathChangeCount != relativeTruePathChangeCount)||(MessageList.VisibleHistoryUpdateCount!= visibleHistoryUpdateCount)||(parentBodyChange))
+        VizardGUISettings.ChiefSpacecraftIndex = newChiefIndex;
+        // Only spacecraft-relative Hill/velocity trajectories consume these histories.
+        // Camera targeting itself needs the current frame, not the entire recording.
+        if (!VizardGUISettings.TruePathLinesVisible || VizardGUISettings.TruePathLineMode != 2 ||
+            VizardGUISettings.SpacecraftRelativeOrbitMode == 3)
+            return;
+
+        if ((VizardGUISettings.RelativeTruePathChangeCount != relativeTruePathChangeCount)||(MessageList.VisibleHistoryUpdateCount!= visibleHistoryUpdateCount)||(parentBodyChange)||chiefHistoryIndex != newChiefIndex)
         {
-            VizardGUISettings.ChiefSpacecraftIndex = newChiefIndex;
             int chiefSCParentBodyIndex = SpacecraftList[newChiefIndex].GetComponent<SpacecraftController>().spacecraftParentBodyIndex;
+            chiefHistoryIndex = newChiefIndex;
             relativeTruePathChangeCount = VizardGUISettings.RelativeTruePathChangeCount;
             visibleHistoryUpdateCount = MessageList.VisibleHistoryUpdateCount;
 			
@@ -482,6 +490,7 @@ public static class SpacecraftStateUtilities{
         actuatorsList = null;
         ChiefPositions = new double[,]{};
         ChiefDCMs = new double[,]{};
+        chiefHistoryIndex = -1;
         relativeTruePathChangeCount = -2;
         visibleHistoryUpdateCount = -2;
 
