@@ -35,7 +35,7 @@ public class MacFileAccess : MonoBehaviour
     {
         VizardEnableFileDrop();
         string path = Marshal.PtrToStringUTF8(VizardTakeFileDrop());
-        if (path == null) return;
+        if (path == null || StartUpScreenManager.LoadingRecording) return;
         var startup = FindFirstObjectByType<StartUpScreenManager>();
         if (!CanOpenRecording(path, out string error))
         {

@@ -65,36 +65,16 @@ public static class DataManager
 
     public static string SaveMsgFileName { get; set; } = "last_run"; //Desired name to save accumulated lives messages to file
     
-/// <summary>
-/// Deactivates objects displayed for in-progress playback,
-/// loads the newly selected playback file into the message buffer,
-/// destroys obsolete objects, and loads a fresh copy of the Vizard Main Scene. 
-/// </summary>
+    public static string RecordingToLoadOnStartup;
+
+    /// <summary>Open the shared loading screen before replacing the playback buffer.</summary>
     public static void LoadFile()
     {
-        Debug.Log($"Filepath to pass: {FilePath}");
-        MessageList.PlaybackPaused = true;
-        MessageList.CurrentIndex = 0;
-        VizardGUISettings.OsculatingOrbitLinesVisible = false;
-        VizardGUISettings.TruePathLinesVisible = false;
-        VizardGUISettings.OsculatingGroundTrackOn = false;
-        VizardGUISettings.TruePathGroundTrackOn = false;
-        ScenarioObjectsContainer.gameObject.SetActive(false);
-        VizardGUISettings.GUICanvas.SetActive(false);
-        MainCameraUtilities.MainCamera.GetComponent<MainCameraMovementController>().enabled = false;
-        try
-        {
-            CreateUserSaveData(_filepath);
-            FirstMessageDisplayed = false;
-            ResetAllUtilities();
-            MessageList.FirstMessageBuffersReadFromFile(_filepath);
-            LastDirectory = DataManager._filepath;
-            SceneManager.LoadScene(MainSceneToLoad);
-        }
-        catch
-        {
-            Debug.Log($"Loading {_filepath} failed.");
-        }
+        if (StartUpScreenManager.LoadingRecording) return;
+        RecordingToLoadOnStartup = FilePath;
+        // Unload the old scene before yielding during indexing: its Update methods
+        // must not access a partially loaded MessageList.
+        SceneManager.LoadScene(UseVR ? "VizardVR_StartupScene" : "VizardStartupScene");
     }
 
 

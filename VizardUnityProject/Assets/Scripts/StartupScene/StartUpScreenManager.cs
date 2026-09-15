@@ -18,6 +18,7 @@
  */
 
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -54,6 +55,8 @@ public class StartUpScreenManager : MonoBehaviour
     [Header("Streaming")] [Tooltip("Provides the direct comm streaming connection and message handling.")]
     public DirectCommunicationController directCommController;
 
+    public static bool LoadingRecording { get; private set; }
+
     private Save lastSave; // Vizard Configuration data from last use (used to set up Startup Screen GUI)
 
     private readonly Color
@@ -89,8 +92,21 @@ public class StartUpScreenManager : MonoBehaviour
         DataManager.FirstMessageDisplayed = false;
         Debug.Log("Resetting from Startup Scene Manager.");
         DataManager.ResetAllUtilities();
-        GoodEnoughAddressables.InitializeAddressables();
+        if (DataManager.RecordingToLoadOnStartup == null)
+            GoodEnoughAddressables.InitializeAddressables();
 
+
+        socketAddressInput.onValueChanged.AddListener(SocketAddressFieldChange);
+        selectFileButton.onClick.AddListener(SelectFileButtonClicked);
+
+        if (DataManager.RecordingToLoadOnStartup != null)
+        {
+            filepathText.text = DataManager.RecordingToLoadOnStartup;
+            DataManager.RecordingToLoadOnStartup = null;
+            socketAddressInput.text = "";
+            StartVisualizationButtonClicked();
+            return;
+        }
 
         Debug.Log("My platform is: " + Application.platform);
         string[] args = Environment.GetCommandLineArgs();
@@ -162,8 +178,6 @@ public class StartUpScreenManager : MonoBehaviour
         SetLastCommMethod();
         LiveConnectionTogglesInteractable(false);
 
-        socketAddressInput.onValueChanged.AddListener(SocketAddressFieldChange);
-        selectFileButton.onClick.AddListener(SelectFileButtonClicked);
     }
 #if VIZARD_OPENXR
 ///<summary>
@@ -288,6 +302,7 @@ public class StartUpScreenManager : MonoBehaviour
     /// </summary>
     public void StartVisualizationButtonClicked()
     {
+        if (LoadingRecording) return;
         UpdateDataManagerSettings();
         SaveUserData();
         errorText.color = Color.blue;
@@ -307,17 +322,9 @@ public class StartUpScreenManager : MonoBehaviour
         }
         else if (!string.IsNullOrEmpty(filepathText.text))
         {
-            errorText.text = "Please stand by. Loading scenario...";
             DataManager.FilePath = filepathText.text;
-            
-            // Read the binary data file
-            bool readSuccess = MessageList.FirstMessageBuffersReadFromFile(DataManager.FilePath);
-            if (!readSuccess)
-            {
-                errorText.color = Color.red;
-                errorText.text = "Parsing file failed. The selected file may be corrupted.";
-                return;
-            }
+            StartCoroutine(LoadRecording());
+            return;
         }
         else
         {
@@ -365,6 +372,83 @@ public class StartUpScreenManager : MonoBehaviour
             }
         }
 
+        SceneManager.LoadScene(DataManager.MainSceneToLoad);
+    }
+
+    private IEnumerator LoadRecording()
+    {
+        LoadingRecording = true;
+        var canvas = errorText.canvas.transform;
+        var inputBlock = canvas.gameObject.AddComponent<CanvasGroup>();
+        inputBlock.interactable = false;
+        var panel = new GameObject("Recording load progress", typeof(RectTransform), typeof(Image));
+        panel.transform.SetParent(canvas, false);
+        var panelRect = (RectTransform)panel.transform;
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.offsetMin = panelRect.offsetMax = Vector2.zero;
+        panel.GetComponent<Image>().color = new Color(0.95f, 0.95f, 0.95f, 0.98f);
+        var label = Instantiate(errorText, panel.transform);
+        label.rectTransform.anchorMin = label.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        label.rectTransform.anchoredPosition = new Vector2(0, 35);
+        label.rectTransform.sizeDelta = new Vector2(500, 80);
+        label.fontSize = 18;
+        label.fontStyle = FontStyles.Normal;
+        label.alignment = TextAlignmentOptions.Center;
+        label.color = activeTextColor;
+        label.richText = false;
+
+        var track = new GameObject("Progress bar", typeof(RectTransform), typeof(Image));
+        track.transform.SetParent(panel.transform, false);
+        var trackRect = (RectTransform)track.transform;
+        trackRect.sizeDelta = new Vector2(440, 12);
+        track.GetComponent<Image>().color = new Color(0.8f, 0.8f, 0.8f);
+        var fill = new GameObject("Progress", typeof(RectTransform), typeof(Image));
+        fill.transform.SetParent(track.transform, false);
+        fill.GetComponent<Image>().color = new Color(0.15f, 0.45f, 0.8f);
+        var fillRect = (RectTransform)fill.transform;
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.offsetMin = fillRect.offsetMax = Vector2.zero;
+
+        string error = null;
+        try
+        {
+            using (var reader = MessageList.ReadFileWithProgress(DataManager.FilePath).GetEnumerator())
+            {
+                while (true)
+                {
+                    bool more;
+                    try { more = reader.MoveNext(); }
+                    catch (Exception exception)
+                    {
+                        error = exception.Message;
+                        break;
+                    }
+                    if (!more) break;
+                    float progress = reader.Current;
+                    fillRect.anchorMax = new Vector2(progress, 1);
+                    label.text = $"Loading recording — {progress:P0}\n{MessageList.TimestepsTotal:N0} frames indexed";
+                    yield return null;
+                }
+            }
+            if (error == null)
+            {
+                label.text = "Preparing visualization…";
+                yield return null;
+            }
+        }
+        finally
+        {
+            LoadingRecording = false;
+            Destroy(panel);
+            Destroy(inputBlock);
+        }
+        if (error != null)
+        {
+            errorText.color = Color.red;
+            errorText.text = $"Could not load recording: {error}";
+            yield break;
+        }
         SceneManager.LoadScene(DataManager.MainSceneToLoad);
     }
 

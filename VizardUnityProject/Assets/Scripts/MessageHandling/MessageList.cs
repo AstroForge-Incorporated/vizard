@@ -219,24 +219,36 @@ public static class MessageList
         
     }
 
-    public static bool FirstMessageBuffersReadFromFile(string filename, long testBufferSize = 0)
+    public static void FirstMessageBuffersReadFromFile(string filename, long testBufferSize = 0)
     {
+        foreach (float progress in ReadFileWithProgress(filename, testBufferSize)) { }
+    }
+
+    /// <summary>Index a recording in short batches, yielding the fraction of bytes read.</summary>
+    public static IEnumerable<float> ReadFileWithProgress(string filename, long testBufferSize = 0)
+    {
+        if (InBufferLoad) throw new InvalidOperationException("A recording is already loading.");
         filepath = filename;
-        if (!InBufferLoad)
+        InBufferLoad = true;
+        try
         {
             ResetMessageListVariables();
-            InBufferLoad = true;
             messages.Clear();
             messageFilePositions = new List<long>();
             timestepsTotal = 0;
             
             int messageReadAttempt = 0; // frames are indexed at 0
 
+            yield return 0f;
+            var batchTimer = System.Diagnostics.Stopwatch.StartNew();
+            const long batchDurationMs = 16;
+
             using (FileStream msgFile = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 bool firstMsg = true;
                 while (msgFile.Position < msgFile.Length)
                 {
+                    long messageStart = msgFile.Position;
                     try
                     {
                         //Save off evenly spaced positions in file for a
@@ -293,21 +305,29 @@ public static class MessageList
                         VizardGUISettings.UpdateErrorMessages(
                             $"Parsing failed on message {messageReadAttempt} in file with exception:\n {ex.Message}. \nMoving to next message.");
                         messageReadAttempt++;
+                        if (msgFile.Position <= messageStart) throw;
+                    }
+
+                    // Yield the UI thread after a short batch, independent of playback speed.
+                    if (batchTimer.ElapsedMilliseconds >= batchDurationMs)
+                    {
+                        yield return (float)((double)msgFile.Position / msgFile.Length);
+                        batchTimer.Restart();
                     }
                 }
             }
-        }        
-        InBufferLoad = false;
-        if (timestepsTotal == 0)
-        {
-            return false;
-        }
-        TimeStepSize = messages[1].CurrentTime.SimTimeElapsed -
-                       messages[0].CurrentTime.SimTimeElapsed;
-        SetVisibleHistoryRanges();
+            if (timestepsTotal < 2 || messages[0].CurrentTime == null || messages[1].CurrentTime == null)
+                throw new InvalidDataException("The recording needs at least two timestamped frames.");
 
-        CurrentIndex = 0;
-        return true;
+            TimeStepSize = messages[1].CurrentTime.SimTimeElapsed - messages[0].CurrentTime.SimTimeElapsed;
+            SetVisibleHistoryRanges();
+            CurrentIndex = 0;
+            yield return 1f;
+        }
+        finally
+        {
+            InBufferLoad = false;
+        }
     }
 
     private static void SetBufferLimitAndIndexSpacing(long bufferLimitSetting, long fileSize, long msgSize, long testBufferSize = 0)
