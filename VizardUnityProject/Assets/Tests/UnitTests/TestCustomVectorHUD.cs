@@ -6,6 +6,19 @@ public static class TestCustomVectorHUD
 {
     public static string Run()
     {
+        var first = new Rect(100, 100, 140, 20);
+        var stacked = CustomVectorLabel.PlaceBelow(first, new[] { first }, false);
+        Assert.IsFalse(stacked.Overlaps(first));
+        Assert.IsTrue(stacked.yMax < first.yMin);
+        Assert.AreEqual(first.x, stacked.x);
+        var third = CustomVectorLabel.PlaceBelow(first, new[] { first, stacked }, false);
+        Assert.IsTrue(third.yMax < stacked.yMin);
+        var apart = new Rect(300, 100, 140, 20);
+        Assert.AreEqual(apart, CustomVectorLabel.PlaceBelow(apart, new[] { first }, true));
+        var near = new Rect(first.xMax + 10, 100, 140, 20);
+        Assert.AreEqual(near, CustomVectorLabel.PlaceBelow(near, new[] { first }, false));
+        Assert.IsTrue(CustomVectorLabel.PlaceBelow(near, new[] { first }, true).yMax < first.yMin);
+
         const float tolerance = 1e-5f;
         var parent = new GameObject("Vector test spacecraft");
         var arrow = Object.Instantiate(Resources.Load<GameObject>("Prefabs/SpacecraftHUD/LineObject"), parent.transform, false);

@@ -44,7 +44,9 @@ Each vector belongs to a spacecraft. Provide these fields in **every frame**:
 - `normalVector`: three body-frame direction components; Vizard normalizes them.
 - `size`: positive arrow length in meters (independent of vector magnitude).
 - `color`: RGBA integers from 0 to 255.
-- `label`: text at the arrow tip; an empty string hides the text.
+- `label`: text at the arrow tip; an empty string hides the text. Overlapping
+  custom-vector labels stack in spacecraft/sensor order, with colored connector
+  lines for displaced labels. Extra clearance prevents flicker as they separate.
 - `isHidden`: hide/show the arrow. Zero or non-finite directions are also hidden.
 
 Set `fieldOfView = [0.0]` when creating the vector. Include its entry

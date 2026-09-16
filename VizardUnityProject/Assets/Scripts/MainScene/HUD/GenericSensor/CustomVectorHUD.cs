@@ -79,6 +79,7 @@ public class CustomVectorHUD : MonoBehaviour
         label = LabelMaker.CreateLabel(message.Label, spacecraft.SpacecraftName, labelAnchor,
             new Vector2(10, -10), "GenericSensors", 0).GetComponent<TextMeshProUGUI>();
         label.richText = false;
+        label.gameObject.AddComponent<CustomVectorLabel>().Initialize(scIndex, vectorIndex);
         // The Labels panel controls this group, including recordings with wing bodies.
         if (showLabel) VizardGUISettings.ShowGenericSensorLabels = true;
         ApplyMessage(message);
