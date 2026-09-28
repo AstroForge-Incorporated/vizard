@@ -1,4 +1,4 @@
-﻿/*
+/*
  ISC License
 
  Copyright (c) 2025, Autonomous Vehicle Systems Lab, University of Colorado at Boulder
@@ -18,6 +18,8 @@
  */
 
 using System;
+using System.Collections;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -55,27 +57,23 @@ public class StartUpScreenManager : MonoBehaviour
     public DirectCommunicationController directCommController;
 
     private Save lastSave; // Vizard Configuration data from last use (used to set up Startup Screen GUI)
+    public bool darkBackground;
+    public CanvasGroup interactionGroup;
 
-    private readonly Color
+    private Color
         inactiveTextColor = new Color(0.3962f, 0.3868f, 0.3868f, 1f); //Text color for inactive GUI components
 
-    private readonly Color
+    private Color
         activeTextColor = new Color(0.1960784f, 0.1960784f, 0.1960784f, 1f); //Text color for active GUI components
 
 
-#if VIZARD_OPENXR
-    // Sets up use of controllers for input to VizardVR_StartupScene
-    // [Header("VR Input")]
-    // public InputActionAsset inputActionAsset;
-    // public GameObject rightRaycast;
-    // public GameObject leftRaycast;
-    // public Transform leftEndMarker;
-    // public Transform rightEndMarker;
-    //
-    //
-    // private InputAction _rightTrigger;
-    // private InputAction _leftTrigger;
-#endif
+    void Awake()
+    {
+        if (!darkBackground) return;
+        inactiveTextColor = new Color(.5f, .57f, .65f, 1);
+        activeTextColor = new Color(.9f, .95f, 1, 1);
+    }
+
     /// <summary>
     ///  Handle any command line arguments and save data from last use
     ///  </summary>
@@ -159,16 +157,6 @@ public class StartUpScreenManager : MonoBehaviour
         socketAddressInput.onValueChanged.AddListener(SocketAddressFieldChange);
         selectFileButton.onClick.AddListener(SelectFileButtonClicked);
     }
-#if VIZARD_OPENXR
-///<summary>
-/// Checks for trigger in progress in each frame to enable/disable raycast
-/// </summary>
-    // void Update()
-    // {
-    //     rightRaycast.SetActive(_rightTrigger.inProgress);
-    //     leftRaycast.SetActive(_leftTrigger.inProgress);
-    // }
-#endif
     /// <summary>
     /// Called when socket address input field text is changed.
     /// If this field is not empty or whitespace, the Connection Type
@@ -193,7 +181,7 @@ public class StartUpScreenManager : MonoBehaviour
     {
         DataManager.IsLiveSim = useLiveSim;
         DataManager.SocketIsReceiveOnly = rxOnly;
-        DataManager.InNoDisplayMode = useNoDisplay;
+        DataManager.InNoDisplayMode = useNoDisplay && !DataManager.UseVR;
 
         rxOnlyToggle.isOn = DataManager.SocketIsReceiveOnly;
         rxTxToggle.isOn = !DataManager.SocketIsReceiveOnly;
@@ -208,7 +196,7 @@ public class StartUpScreenManager : MonoBehaviour
     /// </summary>
     public void SelectFileButtonClicked()
     {
-        errorText.color = Color.blue;
+        errorText.color = darkBackground ? new Color(.4f, .8f, 1) : Color.blue;
         errorText.text = "";
         #if USE_NATIVE_FILE_BROWSER
         if (Application.platform == RuntimePlatform.LinuxPlayer)
@@ -247,7 +235,7 @@ public class StartUpScreenManager : MonoBehaviour
             DataManager.IsLiveSim = true;
             LiveConnectionTogglesInteractable(true);
             DataManager.SocketIsReceiveOnly = rxOnlyToggle.isOn;
-            DataManager.InNoDisplayMode = noDisplayToggle.isOn;
+            DataManager.InNoDisplayMode = noDisplayToggle.isOn && !DataManager.UseVR;
         }
         else
         {
@@ -280,86 +268,97 @@ public class StartUpScreenManager : MonoBehaviour
     /// <summary>
     /// Configure DirectCommController and DataManager for user settings and trigger transition to VizardMainScene
     /// </summary>
+    private bool startingVisualization;
+
     public void StartVisualizationButtonClicked()
     {
-        UpdateDataManagerSettings();
-        SaveUserData();
-        errorText.color = Color.blue;
+        if (!startingVisualization) StartCoroutine(StartVisualization());
+    }
 
-        if (DataManager.IsLiveSim)
+    private IEnumerator StartVisualization()
+    {
+        startingVisualization = true;
+        if (interactionGroup != null) interactionGroup.interactable = false;
+        try
         {
-            errorText.text = "Please stand by. Establishing communication...";
-            directCommController.transform.GetComponent<VizInputAccumulator>().enabled =
-                !DataManager.SocketIsReceiveOnly;
-
-            if (!directCommController.StartCommunication(DataManager.SocketAddress))
+            UpdateDataManagerSettings();
+            errorText.color = darkBackground ? new Color(.4f, .8f, 1) : Color.blue;
+            bool live = DataManager.IsLiveSim;
+            if (!live && string.IsNullOrWhiteSpace(filepathText.text))
             {
-                errorText.color = Color.red;
-                errorText.text = "Socket failed. Please check connection address.";
-                return;
+                ShowStartupError("You must specify a message file or socket address.");
+                yield break;
             }
-        }
-        else if (!string.IsNullOrEmpty(filepathText.text))
-        {
-            errorText.text = "Please stand by. Loading scenario...";
-            DataManager.FilePath = filepathText.text;
-            
-            // Read the binary data file
-            bool readSuccess = MessageList.FirstMessageBuffersReadFromFile(DataManager.FilePath);
-            if (!readSuccess)
-            {
-                errorText.color = Color.red;
-                errorText.text = "Parsing file failed. The selected file may be corrupted.";
-                return;
-            }
-        }
-        else
-        {
-            errorText.color = Color.red;
-            errorText.text = "You must specify a message file or socket address.";
-            return;
-        }
 
-        DateTime startTime = DateTime.Now;
-        while (MessageList.TimestepsTotal < 1)
-        {
-            Debug.Log("Waiting for messages to load.");
-            TimeSpan interval = DateTime.Now - startTime;
-            if (interval.TotalSeconds > 0.5)
+            SaveUserData();
+            errorText.text = live ? "Please stand by. Establishing communication..." : "Please stand by. Loading scenario...";
+            // Allow the status text and headset pose to render before beginning the load.
+            yield return null;
+
+            bool success = false;
+            string failure = null;
+            try
             {
-                Debug.Log("Timed out waiting for messages to load.");
-                if (DataManager.IsLiveSim)
+                if (live)
                 {
-                    errorText.color = Color.red;
-                    errorText.text = "Timed out waiting for connection. Please check address and try again.";
-                    directCommController.StopSocket();
+                    directCommController.GetComponent<VizInputAccumulator>().enabled = !DataManager.SocketIsReceiveOnly;
+                    success = directCommController.StartCommunication(DataManager.SocketAddress);
+                    if (!success) failure = "Socket failed. Please check connection address.";
                 }
-
-                return;
-            }
-
-            System.Threading.Thread.Sleep(50);
-        }
-
-        if (DataManager.IsLiveSim && DataManager.SocketIsReceiveOnly)
-        {
-            while (!MessageList.SettingsMessageReceived)
-            {
-                Debug.Log("Waiting on settings message.");
-                TimeSpan interval = DateTime.Now - startTime;
-                if (interval.TotalSeconds > 0.5)
+                else
                 {
-                    MessageList.SettingsMessageReceived = true;
-                    VizardGUISettings.UpdateErrorMessages(
-                        "Setting message was not received within the first four seconds of Receive Only live streaming and could not be applied.",
-                        true);
+                    DataManager.FilePath = filepathText.text;
+                    if (!File.Exists(DataManager.FilePath)) failure = "Scenario file is not available. Please select another file.";
+                    else
+                    {
+                        success = MessageList.FirstMessageBuffersReadFromFile(DataManager.FilePath);
+                        if (!success) failure = "Parsing file failed. The selected file may be empty or corrupted.";
+                    }
                 }
-
-                System.Threading.Thread.Sleep(50);
             }
-        }
+            catch (Exception ex)
+            {
+                MessageList.InBufferLoad = false;
+                failure = "Could not load scenario or connect: " + ex.Message;
+            }
+            if (!success)
+            {
+                ShowStartupError(failure);
+                yield break;
+            }
 
-        SceneManager.LoadScene(DataManager.MainSceneToLoad);
+            float deadline = Time.realtimeSinceStartup + 4;
+            while (MessageList.TimestepsTotal < 1)
+            {
+                if (Time.realtimeSinceStartup >= deadline)
+                {
+                    if (live) directCommController.StopSocket();
+                    ShowStartupError("Timed out waiting for simulation data. Please check the source and try again.");
+                    yield break;
+                }
+                // Never sleep the Unity render thread while the user is wearing a headset.
+                yield return null;
+            }
+            while (live && DataManager.SocketIsReceiveOnly && !MessageList.SettingsMessageReceived &&
+                   Time.realtimeSinceStartup < deadline) yield return null;
+            if (live && DataManager.SocketIsReceiveOnly && !MessageList.SettingsMessageReceived)
+            {
+                MessageList.SettingsMessageReceived = true;
+                VizardGUISettings.UpdateErrorMessages("Settings were not received within four seconds of live streaming.", true);
+            }
+            yield return SceneManager.LoadSceneAsync(DataManager.MainSceneToLoad);
+        }
+        finally
+        {
+            startingVisualization = false;
+            if (interactionGroup != null) interactionGroup.interactable = true;
+        }
+    }
+
+    private void ShowStartupError(string message)
+    {
+        errorText.color = darkBackground ? new Color(1, .5f, .45f) : Color.red;
+        errorText.text = message;
     }
 
     /// <summary>

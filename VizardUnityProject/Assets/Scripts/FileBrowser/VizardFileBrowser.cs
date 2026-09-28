@@ -35,6 +35,7 @@ public class VizardFileBrowser : MonoBehaviour
     public TMP_Dropdown directoryDropdown;
     public TextMeshProUGUI selectedFileText;
     public TextMeshProUGUI errorMsgText;
+    public bool largeTargets;
 
     private string currentDirectory;
     private string desiredExtensionFilter = "*.bin";
@@ -57,12 +58,17 @@ public class VizardFileBrowser : MonoBehaviour
         fileBrowserPanel.transform.SetAsLastSibling();
         if (firstUse)
         {
-            currentDirectory = Path.GetDirectoryName(DataManager.LastDirectory);
+            currentDirectory = Directory.Exists(DataManager.LastDirectory)
+                ? DataManager.LastDirectory : Path.GetDirectoryName(DataManager.LastDirectory);
             firstUse = false;
         }
-        if (currentDirectory == null)
+        if (string.IsNullOrEmpty(currentDirectory) || !Directory.Exists(currentDirectory))
         {
-            currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            currentDirectory = Application.platform == RuntimePlatform.Android
+                ? Application.persistentDataPath
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            if (string.IsNullOrEmpty(currentDirectory) || !Directory.Exists(currentDirectory))
+                currentDirectory = Application.persistentDataPath;
         }
 
         RefreshView();
@@ -70,7 +76,15 @@ public class VizardFileBrowser : MonoBehaviour
 
     private void RefreshView()
     {
-        PopulateFileButtonInventory();
+        try
+        {
+            PopulateFileButtonInventory();
+        }
+        catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+        {
+            ClearPreviousFileButtons();
+            errorMsgText.text = "Cannot open this directory. Choose another directory. " + ex.Message;
+        }
         PopulateDropdown();
     }
     
@@ -85,12 +99,13 @@ public class VizardFileBrowser : MonoBehaviour
     {
         ClearPreviousFileButtons();
         Vector2 sizeDelta = fileButtonInventory.GetComponent<RectTransform>().sizeDelta;
-        fileButtonInventory.GetComponent<RectTransform>().sizeDelta = new Vector2(sizeDelta.x, 25 * (allFiles.Length+allDirectories.Length));
+        fileButtonInventory.GetComponent<RectTransform>().sizeDelta = new Vector2(sizeDelta.x, (largeTargets ? 52 : 25) * (allFiles.Length+allDirectories.Length));
         foreach (string directory in allDirectories)
         {
             GameObject fileButton = Instantiate (Resources.Load ("Prefabs/VizardFileBrowser/FileInventoryButton") as GameObject, fileButtonInventory, false);
             fileButton.GetComponentInChildren<TextMeshProUGUI>().text = directory;
             fileButton.GetComponent<VizardFileBrowserButton>().SetButtonType("dir", this);
+            ResizeVrButton(fileButton);
         }
 
         foreach (string file in allFiles)
@@ -99,6 +114,7 @@ public class VizardFileBrowser : MonoBehaviour
             GameObject fileButton = Instantiate (Resources.Load ("Prefabs/VizardFileBrowser/FileInventoryButton") as GameObject, fileButtonInventory, false);
             fileButton.GetComponentInChildren<TextMeshProUGUI>().text = fileOnly;
             fileButton.GetComponent<VizardFileBrowserButton>().SetButtonType(desiredExtensionFilter, this);
+            ResizeVrButton(fileButton);
         }
         
         if (allFiles.Length+allDirectories.Length==0)
@@ -109,6 +125,14 @@ public class VizardFileBrowser : MonoBehaviour
         {
             errorMsgText.text = "";
         }
+    }
+
+    private void ResizeVrButton(GameObject button)
+    {
+        if (!largeTargets) return;
+        var rect = button.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(rect.sizeDelta.x, 52);
+        button.GetComponentInChildren<TextMeshProUGUI>().fontSize = 27;
     }
 
     private void ClearPreviousFileButtons()
@@ -153,7 +177,11 @@ public class VizardFileBrowser : MonoBehaviour
             tempDirectory = newDirectory;
 
         }
+        // Avoid onValueChanged recursively rebuilding the list while populating it.
+        directoryDropdown.onValueChanged.RemoveListener(DropdownDirectorySelected);
         VizardGUISettings.PopulateList(directoryDropdown, directoryTree );
+        directoryDropdown.SetValueWithoutNotify(0);
+        directoryDropdown.onValueChanged.AddListener(DropdownDirectorySelected);
     }
 
     private void DropdownDirectorySelected(int optionValue)
