@@ -8,7 +8,7 @@ PlayerSettings:
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
-  defaultScreenOrientation: 4
+  defaultScreenOrientation: 3
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
@@ -179,7 +179,7 @@ PlayerSettings:
     tvOS: 0
   overrideDefaultApplicationIdentifier: 0
   AndroidBundleVersionCode: 1
-  AndroidMinSdkVersion: 23
+  AndroidMinSdkVersion: 29
   AndroidTargetSdkVersion: 0
   AndroidPreferredInstallLocation: 0
   aotOptions: 
@@ -269,7 +269,7 @@ PlayerSettings:
   useCustomGradlePropertiesTemplate: 0
   useCustomGradleSettingsTemplate: 0
   useCustomProguardFile: 0
-  AndroidTargetArchitectures: 5
+  AndroidTargetArchitectures: 2
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
   AndroidKeystoreName: '{inproject}: '
@@ -447,6 +447,9 @@ PlayerSettings:
   - m_BuildTarget: WindowsStandaloneSupport
     m_APIs: 02000000
     m_Automatic: 1
+  - m_BuildTarget: AndroidPlayer
+    m_APIs: 15000000
+    m_Automatic: 0
   m_BuildTargetVRSettings: []
   m_DefaultShaderChunkSizeInMB: 16
   m_DefaultShaderChunkCount: 0
@@ -753,7 +756,7 @@ PlayerSettings:
     33: CT_FB;CT_FB_PRO;CT_UI;CT_PROC;UNITY_POST_PROCESSING_STACK_V2
     4: CT_FB;CT_FB_PRO;CT_UI;CT_PROC
     7: CT_FB;CT_FB_PRO;CT_UI;CT_PROC;UNITY_POST_PROCESSING_STACK_V2
-    Android: ENABLE_JSON_CATALOG;CT_UI;CT_PROC;CT_FB;CT_FB_PRO;UNITY_POST_PROCESSING_STACK_V2;USE_INPUT_SYSTEM_POSE_CONTROL;USE_STICK_CONTROL_THUMBSTICKS
+    Android: ENABLE_JSON_CATALOG;CT_UI;CT_PROC;CT_FB;CT_FB_PRO;UNITY_POST_PROCESSING_STACK_V2;USE_INPUT_SYSTEM_POSE_CONTROL;USE_STICK_CONTROL_THUMBSTICKS;VIZARD_OPENXR
     EmbeddedLinux: ENABLE_JSON_CATALOG;CT_UI;CT_PROC;CT_FB;CT_FB_PRO;UNITY_POST_PROCESSING_STACK_V2
     GameCoreScarlett: CT_FB;CT_FB_PRO;CT_UI;CT_PROC;UNITY_POST_PROCESSING_STACK_V2
     GameCoreXboxOne: CT_UI;CT_PROC;CT_FB;CT_FB_PRO;UNITY_POST_PROCESSING_STACK_V2
@@ -778,6 +781,7 @@ PlayerSettings:
     Standalone: []
   platformArchitecture: {}
   scriptingBackend:
+    Android: 1
     Standalone: 0
   il2cppCompilerConfiguration: {}
   il2cppCodeGeneration: {}
