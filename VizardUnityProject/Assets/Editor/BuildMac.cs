@@ -1,3 +1,4 @@
+#if UNITY_EDITOR_OSX // UnityEditor.OSXStandalone only exists in Editors with macOS build support
 using System;
 using System.IO;
 using UnityEditor;
@@ -75,3 +76,4 @@ public static class BuildMac
         Debug.Log("VIZARD_BUILD_SUCCEEDED");
     }
 }
+#endif
