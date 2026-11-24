@@ -86,10 +86,6 @@ Choose `Select`, open a Basilisk scenario `.bin` recording, then choose
 `Start Visualization`. Supply your own recording; none is bundled with this
 build setup.
 
-Known upstream startup limitation: `-loadFile` can create planets before the
-asynchronous HD materials finish loading. The logs can show successful HD loads
-after playback starts while Earth still uses its basic material. Use the welcome
-screen for HD playback. The installer does not change runtime loading code.
 
 Verify readable startup text, scene rendering, and play/pause controls. Runtime
 logs normally appear at `~/Library/Logs/Vizard/Vizard/Player.log`; pass Unity's
