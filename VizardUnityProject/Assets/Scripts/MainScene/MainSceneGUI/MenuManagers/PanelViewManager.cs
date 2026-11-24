@@ -55,6 +55,7 @@ public class PanelViewManager : MonoBehaviour
     private List<GameObject> stdCamToggles = new List<GameObject>();
     private List<GameObject> customCamToggles = new List<GameObject>();
     private List<GameObject> inventoryPanels = new List<GameObject>();
+    private readonly Dictionary<string, PanelToggle> storagePanelToggles = new();
 
     private int xPosAct = 520;
     private int yPosAct = -15;
@@ -72,6 +73,7 @@ public class PanelViewManager : MonoBehaviour
             gameObject.AddComponent<GuidancePanel>();
             gameObject.AddComponent<StarTrackerPanel>();
             gameObject.AddComponent<GimbalPanel>();
+            gameObject.AddComponent<PropulsionPanel>();
         }
 
         VizardGUISettings.ColorWheelPanel = colorWheelPanel;
@@ -962,6 +964,15 @@ public class PanelViewManager : MonoBehaviour
         panel.GetComponent<RectTransform>().localScale = Vector3.one;
     }
 
+    internal void HideDuplicatePropellant(string spacecraftName)
+    {
+        if (storagePanelToggles.TryGetValue(spacecraftName, out var toggle))
+        {
+            toggle.GetComponent<Toggle>().isOn = false;
+            toggle.panelToToggle.SetActive(false);
+        }
+    }
+
     private void CreateGenericStorageToggleAndPanel(int scIndex, string spacecraftName)
     {
         string toggleName = spacecraftName + " Storage";
@@ -985,6 +996,7 @@ public class PanelViewManager : MonoBehaviour
         }
 
         GameObject toggle = CreateToggleForPanel(toggleName, panel, panelToHoldToggles, isMultiSCSim);
+        storagePanelToggles[spacecraftName] = toggle.GetComponent<PanelToggle>();
 
         FinalizePanel(panel, toggle);
         ResizePanel(instrumentSubPanel);
