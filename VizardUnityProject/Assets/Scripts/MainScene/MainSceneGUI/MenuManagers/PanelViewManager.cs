@@ -70,6 +70,7 @@ public class PanelViewManager : MonoBehaviour
             gameObject.AddComponent<AngularVelocityPanel>();
             gameObject.AddComponent<DeterminationPanel>();
             gameObject.AddComponent<GuidancePanel>();
+            gameObject.AddComponent<StarTrackerPanel>();
         }
 
         VizardGUISettings.ColorWheelPanel = colorWheelPanel;
