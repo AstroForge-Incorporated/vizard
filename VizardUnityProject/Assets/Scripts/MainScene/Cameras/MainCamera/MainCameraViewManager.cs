@@ -102,10 +102,10 @@ public class MainCameraViewManager : MonoBehaviour
         else //Update camera rig position and repoint camera at camera target
         {
             UpdateInertialUnityOffset();
-            cameraRigTransform.position =
-                (MainCameraUtilities.CameraTarget.transform).position - offsetUnity;
+            Vector3 focus = MainCameraUtilities.CameraFocusPosition;
+            cameraRigTransform.position = focus - offsetUnity;
             GetUp();
-            cameraRigTransform.LookAt(MainCameraUtilities.CameraTarget.transform, cameraUp);
+            cameraRigTransform.LookAt(focus, cameraUp);
         }
 
         // Release the user input controlled main camera movement
@@ -262,7 +262,7 @@ public class MainCameraViewManager : MonoBehaviour
     /// <param name="zoomIn">True if camera rig is moving closer to camera target</param>
     public void AdjustClippingPlanes(bool zoomIn)
     {
-        float camDistToTarget = cameraRigTransform.position.magnitude;
+        float camDistToTarget = (cameraRigTransform.position - MainCameraUtilities.CameraOrbitPivot).magnitude;
         bool setReflectionProbeAndSecondaryCameraClippingPlanes = false;
         float minClippingPlane = CelestialBodyStateUtilities.ViewIsSpacecraftLocal ? 0.1f : 10f;
         //If zooming in, reduce clipping planes to keep camera target within frustum
@@ -401,11 +401,11 @@ public class MainCameraViewManager : MonoBehaviour
             }
             else //There is no celestial body in the scenario
             {
-                cameraRigTransform.position =
-                    -(newTarget.GetComponent<SpacecraftController>().meshDimension * newTarget.transform.localScale.x) *
-                    Vector3.one;
+                Vector3 focus = MainCameraUtilities.CameraFocusPosition;
+                cameraRigTransform.position = focus -
+                    newTarget.GetComponent<SpacecraftController>().meshDimension * newTarget.transform.localScale.x * Vector3.one;
                 SetOffset();
-                cameraRigTransform.LookAt(MainCameraUtilities.CameraTarget.transform);
+                cameraRigTransform.LookAt(focus);
             }
 
             currentScale = 1 / CelestialBodyStateUtilities.SpacecraftLocalViewScale;
@@ -465,7 +465,7 @@ public class MainCameraViewManager : MonoBehaviour
 
         //Calculate the distance in meters of the main camera from the new camera target
         MainCameraUtilities.TrueCameraDistanceToTargetMeters=currentScale *
-                                                                ((MainCameraUtilities.CameraTarget.transform).position -
+                                                                (MainCameraUtilities.CameraFocusPosition -
                                                                  cameraRigTransform.position).magnitude;
         //Update the scale of coordinate frames and other line renderer objects for the new view scale
         VizardGUISettings.UpdateCSandLineRenderers();
@@ -491,7 +491,7 @@ public class MainCameraViewManager : MonoBehaviour
         });
         //Position the main camera rig offset from the spacecraft
         UpdateInertialUnityOffset();
-        cameraRigTransform.position = (MainCameraUtilities.CameraTarget.transform).position - offsetUnity;
+        cameraRigTransform.position = MainCameraUtilities.CameraFocusPosition - offsetUnity;
         cameraRigTransform.up = Vector3.up;
         SetUp();
     }
@@ -531,13 +531,10 @@ public class MainCameraViewManager : MonoBehaviour
     /// </summary>
     public void SetOffset()
     {
-        //Set offset as the current vector of the main camera from the camera target
-        offsetUnity = -cameraRigTransform.position;
-        //MainCameraUtilities.cameraTarget position is zero except when in solar system view
-        if (!CelestialBodyStateUtilities.ViewIsLocal)
-        {
-            offsetUnity += (MainCameraUtilities.CameraTarget.transform).position; //Add non-zero camera target position
-        }
+        // Local views move the target to the scene origin. The spacecraft view also centers its model.
+        Vector3 focus = CelestialBodyStateUtilities.ViewIsLocal
+            ? MainCameraUtilities.CameraOrbitPivot : MainCameraUtilities.CameraFocusPosition;
+        offsetUnity = focus - cameraRigTransform.position;
 
         //Calculate the desired offset in the current hill frame if camera target is a spacecraft or effector
         if (MainCameraUtilities.CameraTargetIsSpacecraftOrEffector)
