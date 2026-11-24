@@ -75,6 +75,7 @@ public class PlanetController : MonoBehaviour {
     private string materialKey;
     private Material atmosphereMaterial;
     private bool usingAtmosphereMaterial;
+    private bool waitingForAtmosphereMaterial;
 	
     public void InitializeCelestialBody(int index, string bodyPropertiesKey, bool isCustom, bool inTestMode=false){
         planetIndex = index;
@@ -121,13 +122,6 @@ public class PlanetController : MonoBehaviour {
             transform.gameObject.tag = "Planet";
         }
 		
-        atmosphereMatAvailable = VizardGUISettings.UseAtmosphereShaderIfAvailable&&CelestialBodyStateUtilities.AtmosphereMaterialAvailable(bodyDictionaryKey);
-        if ((atmosphereMatAvailable)&&(ellipticity > 0.01f))
-        {
-            atmosphereMatAvailable = false;
-            VizardGUISettings.UpdateErrorMessages($"Ellipticity of {name} set to >0.01. Atmosphere shader disabled.", true);
-        }
-
         cameraToUse = Camera.main;
 		
         // Rename the collider that allows the user to double-click and select planet
@@ -551,6 +545,8 @@ public class PlanetController : MonoBehaviour {
     }
     public void FinalizeAppliedModel(GameObject newModel, bool isSphere)
     {
+        waitingForAtmosphereMaterial = false;
+        atmosphereMatAvailable = atmosphereMatAvailable && newModel.GetComponent<AtmosphereShaderHelper>() != null;
         GameObject oldModel = planetModel;
         Quaternion newModelRotation = newModel.transform.localRotation;
         Vector3 newModelLocalPosition = newModel.transform.localPosition;
@@ -666,13 +662,9 @@ public class PlanetController : MonoBehaviour {
                 string matToLoad = "Mesh_" + bodyDictionaryKey + "Material";
 
                 Material myMaterial = CelestialBodyStateUtilities.AtmosphereMaterialAvailable(bodyDictionaryKey);
-                if ((myMaterial!=null)&&(atmosphereMatAvailable))
+                if (!TryApplyAtmosphereMaterial(myMaterial))
                 {
-                    ApplyAtmosphereMaterial(myMaterial);
-                }
-                else
-                {
-                    atmosphereMatAvailable = false;
+                    waitingForAtmosphereMaterial = myMaterial == null;
                     planetModel.GetComponent<Renderer>().material = ((Material)
                         Resources.Load("Materials/CelestialBodies/" + matToLoad));
                 }
@@ -680,12 +672,36 @@ public class PlanetController : MonoBehaviour {
         }
     }
 
-    private void ApplyAtmosphereMaterial(Material newMaterial)
+    public void ApplyLateAtmosphereMaterial(Material material)
     {
+        if (!waitingForAtmosphereMaterial)
+        {
+            return;
+        }
+        waitingForAtmosphereMaterial = false;
+        if (TryApplyAtmosphereMaterial(material) && planetModel.GetComponent<AtmosphereShaderHelper>().HDatmosphere)
+        {
+            Debug.Log($"Applied {material.name} to {name} in local view.");
+        }
+    }
+
+    private bool TryApplyAtmosphereMaterial(Material newMaterial)
+    {
+        if (newMaterial == null || !VizardGUISettings.UseAtmosphereShaderIfAvailable)
+        {
+            return false;
+        }
+        if (ellipticity > 0.01f)
+        {
+            VizardGUISettings.UpdateErrorMessages($"Ellipticity of {name} set to >0.01. Atmosphere shader disabled.", true);
+            return false;
+        }
+        atmosphereMatAvailable = true;
         VizardGUISettings.PopRemoteAssetLoadFromList(materialKey, true);
         atmosphereMaterial = newMaterial;
         planetModel.GetComponent<MeshRenderer>().material = atmosphereMaterial;
         AddAtmosphereShaderHelper();
+        return true;
     }
 
     public void ApplyDefaultMaterial()
@@ -704,7 +720,7 @@ public class PlanetController : MonoBehaviour {
             atmosphereHelper.PlanetMaterial = planetModel.GetComponent<Renderer>().material;
             atmosphereHelper.SetPlanetValues(bodyDictionaryKey);
         }
-        bool enableAtmosphere = GetAtmosphereEnabled();
+        bool enableAtmosphere = CelestialBodyStateUtilities.ViewIsLocal && GetAtmosphereEnabled();
         EnableAtmosphereCalculations(enableAtmosphere,false);
     }
 

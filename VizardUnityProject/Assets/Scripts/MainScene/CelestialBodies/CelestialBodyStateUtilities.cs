@@ -181,6 +181,14 @@ public static class CelestialBodyStateUtilities{
                 {
                     AtmosphereMaterials[planetName] = newMaterial;
                     Debug.Log(newMaterial.name);
+                    foreach (GameObject body in CelestialBodiesList)
+                    {
+                        if (body != null && body.TryGetComponent<PlanetController>(out var planet) &&
+                            planet.bodyDictionaryKey == planetName)
+                        {
+                            planet.ApplyLateAtmosphereMaterial(newMaterial);
+                        }
+                    }
                     return;
                 }
             }
