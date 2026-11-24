@@ -39,6 +39,10 @@ public class ThrusterHUDMethods : MonoBehaviour
     public Vector3 thrustVector;
     public ParticleSystem thrustPlume;
 
+    private Transform xenonOutlet;
+    private MeshRenderer xenonPlume;
+    private MaterialPropertyBlock xenonProperties;
+
     private bool isFiring;
 
     public int particleCount = 300;
@@ -70,11 +74,20 @@ public class ThrusterHUDMethods : MonoBehaviour
         spacecraftIndex = mySpacecraftIndex;
         thrusterIndex = myThrusterIndex;
         mySpacecraft = spacecraft;
-        VizMessage.Types.Thruster myThruster =
-            MessageList.FirstMessage.Spacecraft[spacecraftIndex].Thrusters[thrusterIndex];
+        var body = MessageList.FirstMessage.Spacecraft[spacecraftIndex];
+        var myThruster = body.Thrusters[thrusterIndex];
         thrusterCone = GetComponentInChildren<MeshRenderer>();
         thrusterCone.enabled = thrusterGeomOn;
         
+        if (body.SpacecraftName == "DeepSpace-2" || body.ParentSpacecraftName == "DeepSpace-2")
+        {
+            thrustPlume.gameObject.SetActive(false);
+            var prefab = Resources.Load<GameObject>("Prefabs/SpacecraftHUD/XenonPlume");
+            xenonOutlet = Instantiate(prefab, transform).transform;
+            xenonPlume = xenonOutlet.GetComponentInChildren<MeshRenderer>();
+            xenonProperties = new MaterialPropertyBlock();
+        }
+
         SetThrusterColorFromMessage(myThruster);
         
         //Establish thruster position and orientation
@@ -82,7 +95,7 @@ public class ThrusterHUDMethods : MonoBehaviour
         maxThrust = myThruster.MaxThrust;
         
         lastFrameParticleLifeScalar = ThrusterUtilities.GetParticleLifeUserSettingScalar();
-        SetParticleLifeSizeAndCount();
+        SetPlumeSize();
         
         thrustVector = OrbitVectorMath.ReturnVector3(OrbitVectorMath.TransformFromBSKCStoUnity(myThruster.ThrustVector.ToArray()));
         transform.forward = thrustVector;
@@ -105,7 +118,14 @@ public class ThrusterHUDMethods : MonoBehaviour
         if (thrusterLabel != null)
         {
             thrusterLabel.SetActive(false);
-            thrustPlume.Clear();
+            if (xenonPlume != null)
+            {
+                xenonPlume.enabled = false;
+            }
+            else
+            {
+                thrustPlume.Clear();
+            }
         }
     }
 
@@ -117,8 +137,23 @@ public class ThrusterHUDMethods : MonoBehaviour
             thrusterLabel.SetActive(VizardGUISettings.ShowThrusterLabels);
             VizMessage.Types.Thruster currentMsg =
                 MessageList.CurrentMessage.Spacecraft[spacecraftIndex].Thrusters[thrusterIndex];
+            float lengthScale = ThrusterUtilities.GetParticleLifeUserSettingScalar();
+            bool sizeChanged = Math.Abs(lastFrameParticleLifeScalar - lengthScale) > OrbitVectorMath.EPS;
+            if (sizeChanged)
+            {
+                lastFrameParticleLifeScalar = lengthScale;
+                SetPlumeSize();
+            }
+
+            thrusterCone.enabled = thrusterGeomOn;
+            if (xenonPlume != null)
+            {
+                UpdateXenonPlume(currentMsg);
+                return;
+            }
+
             double currentThrust = currentMsg.CurrentThrust;
-            var main = thrustPlume.main; 
+            var main = thrustPlume.main;
 
             if (currentThrust > 0)
             {
@@ -142,10 +177,8 @@ public class ThrusterHUDMethods : MonoBehaviour
                 }
             }
 
-            if (Math.Abs(lastFrameParticleLifeScalar - ThrusterUtilities.GetParticleLifeUserSettingScalar()) > OrbitVectorMath.EPS)
+            if (sizeChanged)
             {
-                lastFrameParticleLifeScalar = ThrusterUtilities.GetParticleLifeUserSettingScalar();
-                SetParticleLifeSizeAndCount();
                 thrustPlume.Clear();
                 thrustPlume.Play();
             }
@@ -170,14 +203,16 @@ public class ThrusterHUDMethods : MonoBehaviour
                     }
                 }
             }
-
-            thrusterCone.enabled = thrusterGeomOn;
         }
         else
         {
             //sprite is on, so don't show thrust plumes or geometry or labels
             thrusterLabel.SetActive(false);
-            if (thrustPlume.isPlaying)
+            if (xenonPlume != null)
+            {
+                xenonPlume.enabled = false;
+            }
+            else if (thrustPlume.isPlaying)
             {
                 thrustPlume.Stop();
             }
@@ -189,8 +224,34 @@ public class ThrusterHUDMethods : MonoBehaviour
         }
     }
 
-    private void SetParticleLifeSizeAndCount()
+    private void UpdateXenonPlume(VizMessage.Types.Thruster thruster)
     {
+        double thrust = thruster.CurrentThrust;
+        xenonPlume.enabled = thrust > 0 && thrust < double.PositiveInfinity
+            && maxThrust > 0 && maxThrust < double.PositiveInfinity;
+        if (!xenonPlume.enabled) return;
+
+        if (thruster.Color.Count >= 3)
+        {
+            SetThrusterColorFromMessage(thruster);
+        }
+        xenonProperties.SetFloat("_Thrust", Mathf.Clamp01((float)(thrust / maxThrust)));
+        xenonProperties.SetColor("_Tint", maxThrustColor);
+        xenonPlume.SetPropertyBlock(xenonProperties);
+    }
+
+    private void SetPlumeSize()
+    {
+        // The optional normal line uses the same length setting for both plume types.
+        lineScale = (maxLineSize / Mathf.Log(100)) * Mathf.Log((float) maxThrust) + minLineSize;
+        lineScale = Mathf.Max(minLineSize, lineScale * lastFrameParticleLifeScalar);
+
+        if (xenonOutlet != null)
+        {
+            xenonOutlet.localScale = new Vector3(1, 1, lastFrameParticleLifeScalar);
+            return;
+        }
+
         var main = thrustPlume.main; 
         //Start Life of the particles determines the length of the thrust trail
         myParticleLife = particleLife * Mathf.Log((float) maxThrust, 10f) + minParticleLife;
@@ -214,13 +275,6 @@ public class ThrusterHUDMethods : MonoBehaviour
 
         float myStartSize = (myParticleLife) * minParticleSize + 1f;
         main.startSize = myStartSize;
-        //Adjust the length of the thrust vector line to indicate thruster strength:
-        lineScale = (maxLineSize / Mathf.Log(100)) * Mathf.Log((float) maxThrust) + minLineSize;
-        lineScale *= lastFrameParticleLifeScalar;
-        if (lineScale < minLineSize)
-        {
-            lineScale = minLineSize;
-        }
     }
 
     static void CreateLineMaterial()
