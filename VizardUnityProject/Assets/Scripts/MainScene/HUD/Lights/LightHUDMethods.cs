@@ -95,7 +95,7 @@ public class LightHUDMethods : MonoBehaviour
 		}
 
 		if (lightLabel!= null){
-			lightLabel.GetComponent<TextMeshProUGUI>().text = lightName;
+			lightLabel.GetComponent<TextMeshProUGUI>().text = LabelMaker.CapitalizeLabel(lightName);
 			lightLabel.name = $"{parentBodyName} Light {lightName}";
 		}
 

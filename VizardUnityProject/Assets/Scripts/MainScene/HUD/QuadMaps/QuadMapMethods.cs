@@ -317,7 +317,7 @@ public class QuadMapMethods : MonoBehaviour
 
     private void UpdateLabel(string labelText)
     {
-        myLabel.GetComponent<TextMeshProUGUI>().text = labelText;
+        myLabel.GetComponent<TextMeshProUGUI>().text = LabelMaker.CapitalizeLabel(labelText);
         myLabel.SetActive(VizardGUISettings.ShowQuadMapLabels&&(labelText!=""));
     }
     /// <summary>

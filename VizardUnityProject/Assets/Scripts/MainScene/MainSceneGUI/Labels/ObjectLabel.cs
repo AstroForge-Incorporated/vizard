@@ -38,7 +38,7 @@ public class ObjectLabel : MonoBehaviour
 
 	public void InitializeLabel(string displayText, Transform target, Vector2 offset, int alignment = 1){
 		TextMeshProUGUI myText = GetComponent<TextMeshProUGUI>();
-		myText.text = displayText;
+		myText.text = LabelMaker.CapitalizeLabel(displayText);
 		myText.fontSize = LabelMaker.FontSize;
 		targetTransform = target;
 		screenOffset = offset;

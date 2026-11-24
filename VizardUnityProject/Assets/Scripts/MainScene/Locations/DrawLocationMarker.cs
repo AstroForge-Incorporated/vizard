@@ -81,7 +81,6 @@ public class DrawLocationMarker : MonoBehaviour
         {
             myLabel = LabelMaker.CreateLabel(name, "Label", myMarker, new Vector2(10, 0), "Locations", 0);
             myLabel.SetActive(VizardGUISettings.ShowLocationLabels);
-            myLabel.GetComponent<TextMeshProUGUI>().text = name; //Set label to display station name by default
             SetLabelText(myMsg);
             if (isFullLocation)
             {
@@ -225,7 +224,7 @@ public class DrawLocationMarker : MonoBehaviour
     {
         if (!String.IsNullOrEmpty(myMsg.Label))
         {
-            myLabel.GetComponent<TextMeshProUGUI>().text = (myMsg.Label == "NOLABEL") ? "" : myMsg.Label;
+            myLabel.GetComponent<TextMeshProUGUI>().text = (myMsg.Label == "NOLABEL") ? "" : LabelMaker.CapitalizeLabel(myMsg.Label);
         }
     }
     
