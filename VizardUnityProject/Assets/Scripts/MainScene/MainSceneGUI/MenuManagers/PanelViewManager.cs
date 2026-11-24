@@ -33,6 +33,7 @@ public class PanelViewManager : MonoBehaviour
     [Header("GUI Components")]
     public GameObject panelCanvas;
     public GUIPanelLayout guiPanelLayout;
+    internal PanelDock TelemetryDock { get; private set; }
     
     [Header ("Main Menu GUI Components")]
     public GameObject loadNewFileButton;
@@ -54,6 +55,7 @@ public class PanelViewManager : MonoBehaviour
     private List<GameObject> stdCamToggles = new List<GameObject>();
     private List<GameObject> customCamToggles = new List<GameObject>();
     private List<GameObject> inventoryPanels = new List<GameObject>();
+    private readonly Dictionary<string, PanelToggle> storagePanelToggles = new();
 
     private int xPosAct = 520;
     private int yPosAct = -15;
@@ -63,6 +65,17 @@ public class PanelViewManager : MonoBehaviour
     private void Awake()
     {
         guiPanelLayout = transform.GetComponent<GUIPanelLayout>();
+        if (!DataManager.UseVR && !DataManager.InNoDisplayMode)
+        {
+            TelemetryDock = new PanelDock(guiPanelLayout);
+            gameObject.AddComponent<AngularVelocityPanel>();
+            gameObject.AddComponent<DeterminationPanel>();
+            gameObject.AddComponent<GuidancePanel>();
+            gameObject.AddComponent<StarTrackerPanel>();
+            gameObject.AddComponent<GimbalPanel>();
+            gameObject.AddComponent<PropulsionPanel>();
+        }
+
         VizardGUISettings.ColorWheelPanel = colorWheelPanel;
         VizardGUISettings.FadingStatusTextBox = fadingStatusText;
         addCameraButton.onClick.AddListener(AddStandardCameraPanel);
@@ -305,6 +318,15 @@ public class PanelViewManager : MonoBehaviour
         panel.SetActive(true);
         toggle.GetComponent<RectTransform>().localScale = Vector3.one;
         panel.GetComponent<RectTransform>().localScale = Vector3.one;
+    }
+
+    internal void RegisterTelemetryPanel(GameObject panel, string title)
+    {
+        panel.transform.SetParent(guiPanelLayout.transform, false);
+        var toggle = CreateToggleForPanel(title, panel, actuatorSubPanel);
+        panel.GetComponentInChildren<ClosePanelButton>().SetMyToggle(toggle);
+        toggle.GetComponent<Toggle>().isOn = true;
+        ResizePanel(actuatorSubPanel);
     }
 
     private void CreateReactionWheelToggleAndPanel(string toggleName, int scIndex, string spacecraftName)
@@ -942,6 +964,15 @@ public class PanelViewManager : MonoBehaviour
         panel.GetComponent<RectTransform>().localScale = Vector3.one;
     }
 
+    internal void HideDuplicatePropellant(string spacecraftName)
+    {
+        if (storagePanelToggles.TryGetValue(spacecraftName, out var toggle))
+        {
+            toggle.GetComponent<Toggle>().isOn = false;
+            toggle.panelToToggle.SetActive(false);
+        }
+    }
+
     private void CreateGenericStorageToggleAndPanel(int scIndex, string spacecraftName)
     {
         string toggleName = spacecraftName + " Storage";
@@ -965,6 +996,7 @@ public class PanelViewManager : MonoBehaviour
         }
 
         GameObject toggle = CreateToggleForPanel(toggleName, panel, panelToHoldToggles, isMultiSCSim);
+        storagePanelToggles[spacecraftName] = toggle.GetComponent<PanelToggle>();
 
         FinalizePanel(panel, toggle);
         ResizePanel(instrumentSubPanel);

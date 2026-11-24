@@ -85,8 +85,6 @@ public class GenericStorageUnitMethods : MonoBehaviour
         VizProtobufferMessage.VizMessage.Types.GenericStorage myMsg = MessageList.CurrentMessage
             .Spacecraft[spacecraftIndex].StorageDevices[deviceIndex];
 
-        deviceName.text = myMsg.Label;
-
         float value = (float) myMsg.CurrentValue;
         float maxValue = (float) myMsg.MaxValue;
 
@@ -106,7 +104,7 @@ public class GenericStorageUnitMethods : MonoBehaviour
             {
                 if (!DataManager.UseVR)
                 {
-                    verboseText.text = $"{value} / {maxValue} {units}  ";
+                    verboseText.text = FormatReading(myMsg.CurrentValue, myMsg.MaxValue, units);
 
                 }
                 else
@@ -160,6 +158,9 @@ public class GenericStorageUnitMethods : MonoBehaviour
 
 
     }
+
+    public static string FormatReading(double value, double maximum, string units) => units == "kg"
+        ? $"{value:F5} / {maximum} {units}" : $"{(float)value} / {(float)maximum} {units}";
 
     private void SetBarColorsList(VizProtobufferMessage.VizMessage.Types.GenericStorage myMsg)
     {

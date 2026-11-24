@@ -17,6 +17,7 @@
 
  */
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,6 +25,11 @@ using UnityEngine.UI;
 /// Sets up and updates a spacecraft's reaction wheel display panel
 /// </summary>
 public class ReactionWheelPanelMethods : MonoBehaviour {
+	private TextMeshProUGUI allocatorLabel;
+	private string spacecraftName;
+	private string allocatorMode;
+	private double speedScale;
+	private double torqueScale;
 	public int spacecraftIndex;
 	private GameObject myPanel;
 	private Button verboseButton;
@@ -32,46 +38,46 @@ public class ReactionWheelPanelMethods : MonoBehaviour {
 	private int wheelCount;
 
 	private float ypos = -35;
-	private float xpos = 30;
+	private float xpos = 50;
 
 
 	private List<GameObject> speedBarsList = new List<GameObject> ();
 	private List<GameObject> torqueBarsList = new List<GameObject> ();
-	private List<GameObject> speedLabelsList = new List<GameObject>();
-	private List<GameObject> torqueLabelsList = new List<GameObject>();
+	private List<TextMeshProUGUI> speedLabelsList = new List<TextMeshProUGUI>();
+	private List<TextMeshProUGUI> torqueLabelsList = new List<TextMeshProUGUI>();
 	
 
 	public void InitializePanel (GameObject parentPanel, int spacecraftID, string spacecraftName){
 		spacecraftIndex = spacecraftID;
+		this.spacecraftName = spacecraftName;
 		myPanel = parentPanel;
 		string parentName = MessageList.FirstMessage.Spacecraft[spacecraftIndex].ParentSpacecraftName;
-		if (parentName == "")
-		{
-			myPanel.name = spacecraftName + " Reaction Wheels Panel";
-			myPanel.transform.GetChild (0).GetComponent<TextMeshProUGUI> ().text = spacecraftName+" RW";
-		}
-		else
-		{
-			myPanel.name = parentName + "/" + spacecraftName + " Reaction Wheels Panel";
-			myPanel.transform.GetChild (0).GetComponent<TextMeshProUGUI> ().text = parentName + "/" + spacecraftName+" RW";
-		}
+		string fullName = string.IsNullOrEmpty(parentName) ? spacecraftName : parentName + "/" + spacecraftName;
+		myPanel.name = fullName + " Reaction Wheels Panel";
+		bool multiplePanels = MessageList.FirstMessage.Spacecraft.Count(sc => sc.ReactionWheels.Count > 0) > 1;
+		myPanel.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = multiplePanels ? fullName + " RW" : "Reaction Wheels";
 
 		wheelCount = MessageList.FirstMessage.Spacecraft[spacecraftIndex].ReactionWheels.Count;
 
 		Color blueColor = new Vector4 (0.32f, 0.73f, 0.93f, 1f);
 		Color yellowColor = new Vector4(0.93f,0.84f,0.32f,1f);
 
-		myPanel.GetComponent<RectTransform> ().sizeDelta = new Vector2 ((42*wheelCount+66), 170);
+		for (int i = 3; i <= 6; i++) {
+			var label = myPanel.transform.GetChild(i).GetComponent<TextMeshProUGUI>();
+			label.rectTransform.sizeDelta = new Vector2(55, 30);
+			label.textWrappingMode = TextWrappingModes.NoWrap;
+		}
+		myPanel.transform.GetChild(7).GetComponent<RectTransform>().anchoredPosition += new Vector2(20, 0);
 		UpdateScales ();
-		myPanel.transform.GetChild (5).GetComponent<RectTransform> ().anchoredPosition = new Vector2 (42 * wheelCount + 30, -25);
-		myPanel.transform.GetChild (6).GetComponent<RectTransform> ().anchoredPosition = new Vector2 (42 * wheelCount + 30, -115);
-		myPanel.transform.GetChild (9).GetComponent<RectTransform> ().anchoredPosition = new Vector2 (42 * wheelCount + 27, -105);
+		myPanel.transform.GetChild (5).GetComponent<RectTransform> ().anchoredPosition = new Vector2 (42 * wheelCount + 50, -25);
+		myPanel.transform.GetChild (6).GetComponent<RectTransform> ().anchoredPosition = new Vector2 (42 * wheelCount + 50, -115);
+		myPanel.transform.GetChild (9).GetComponent<RectTransform> ().anchoredPosition = new Vector2 (42 * wheelCount + 47, -105);
 		myPanel.transform.GetChild (7).GetComponent<RectTransform> ().sizeDelta = new Vector2 (42 * wheelCount+5, 1);
 
 		verboseButton = myPanel.transform.GetChild (10).GetComponent<Button> ();
 		verboseButton.onClick.AddListener (ToggleVerboseMode);
 		verbosePanel = myPanel.transform.GetChild (11).gameObject;
-		verbosePanel.GetComponent<RectTransform> ().sizeDelta = new Vector2 ((42*wheelCount+66), 40);
+		verbosePanel.GetComponent<RectTransform> ().sizeDelta = new Vector2 ((42*wheelCount+106), 40);
 
 		for (int wheel=0; wheel<wheelCount ; wheel++){
 			//Add the reaction wheel speed bar
@@ -84,23 +90,12 @@ public class ReactionWheelPanelMethods : MonoBehaviour {
 			//Add the label for the speed/torque bar pair
 			GameObject rwLabel = Instantiate(Resources.Load("Prefabs/GUIGenerics/GUILabel") as GameObject, myPanel.transform, true);
 			rwLabel.name = $"RW{wheel}";
-			rwLabel.GetComponent<TextMeshProUGUI>().text = $"RW{wheel}";
-			rwLabel.GetComponent<TextMeshProUGUI> ().alignment = TextAlignmentOptions.MidlineLeft;
+			rwLabel.GetComponent<TextMeshProUGUI>().text = WheelLabel(wheel);
+			rwLabel.GetComponent<TextMeshProUGUI> ().alignment = TextAlignmentOptions.Midline;
 			rwLabel.GetComponent<RectTransform> ().anchoredPosition = new Vector2 ((xpos+5), -130);
 
-			//Add the reaction wheel's speed verbose label
-			GameObject speedLabel = Instantiate(Resources.Load("Prefabs/GUIGenerics/GUILabel") as GameObject, verbosePanel.transform, true);
-			speedLabel.name = $"Speed Verbose RW{wheel}";
-			speedLabel.GetComponent<TextMeshProUGUI> ().alignment = TextAlignmentOptions.MidlineLeft;
-			speedLabel.GetComponent<TextMeshProUGUI> ().fontSize = 9;
-			speedLabel.GetComponent<RectTransform> ().anchoredPosition = new Vector2 (xpos+7, 0);
-
-			//Add the reaction wheel's torque verbose label
-			GameObject torqueLabel = Instantiate(Resources.Load("Prefabs/GUIGenerics/GUILabel") as GameObject, verbosePanel.transform, true);
-			torqueLabel.name = $"Torque Verbose RW{wheel}";
-			torqueLabel.GetComponent<TextMeshProUGUI> ().alignment = TextAlignmentOptions.MidlineLeft;
-			torqueLabel.GetComponent<TextMeshProUGUI> ().fontSize = 9;
-			torqueLabel.GetComponent<RectTransform> ().anchoredPosition = new Vector2 (xpos+7, -15);
+			TextMeshProUGUI speedLabel = AddVerboseLabel ($"Speed Verbose RW{wheel}", xpos+7, 0);
+			TextMeshProUGUI torqueLabel = AddVerboseLabel ($"Torque Verbose RW{wheel}", xpos+7, -15);
 			
 			xpos += 15;
 			//Add the reaction wheel torque bar
@@ -116,75 +111,104 @@ public class ReactionWheelPanelMethods : MonoBehaviour {
 			torqueLabelsList.Add (torqueLabel);
 			speedLabelsList.Add (speedLabel);
 		}
+
+		//Label the units once, in the column past the last wheel
+		AddVerboseLabel ("Speed Units", xpos+7, 0).text = "rad/s";
+		AddVerboseLabel ("Torque Units", xpos+7, -15).text = "mN·m";
 			
+		allocatorLabel = Instantiate(Resources.Load<GameObject>("Prefabs/GUIGenerics/GUILabel"), myPanel.transform, false).GetComponent<TextMeshProUGUI>();
+		allocatorLabel.name = "AllocatorState";
+		var rect = allocatorLabel.rectTransform;
+		rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
+		rect.anchoredPosition = new Vector2(8, -146);
+		rect.sizeDelta = new Vector2(42 * wheelCount + 90, 20);
+		allocatorLabel.fontSize = 11;
+		allocatorLabel.alignment = TextAlignmentOptions.Midline;
+		allocatorLabel.textWrappingMode = TextWrappingModes.NoWrap;
+		allocatorLabel.gameObject.SetActive(false);
+		UpdatePanelSize();
 		verbosePanel.SetActive (false);
 
 	}
 
-	private void UpdateScales(){
-		if (ReactionWheelUtilities.MaxSpeed[spacecraftIndex]<1){
-			myPanel.transform.GetChild (3).GetComponent<TextMeshProUGUI> ().text = ReactionWheelUtilities.MaxSpeed[spacecraftIndex].ToString("F1");//("#.");
-			myPanel.transform.GetChild (4).GetComponent<TextMeshProUGUI> ().text = "-" +ReactionWheelUtilities.MaxSpeed[spacecraftIndex].ToString("F1"); //("#.");
-		}else{
-			myPanel.transform.GetChild (3).GetComponent<TextMeshProUGUI> ().text = ReactionWheelUtilities.MaxSpeed[spacecraftIndex].ToString("F1");
-			myPanel.transform.GetChild (4).GetComponent<TextMeshProUGUI> ().text = "-" +ReactionWheelUtilities.MaxSpeed[spacecraftIndex].ToString("F1"); 
-		}
-		myPanel.transform.GetChild (5).GetComponent<TextMeshProUGUI> ().text = ReactionWheelUtilities.MaxTorque[spacecraftIndex].ToString("F1");
-		myPanel.transform.GetChild (6).GetComponent<TextMeshProUGUI> ().text = "-" + ReactionWheelUtilities.MaxTorque[spacecraftIndex].ToString("F1");
+	private TextMeshProUGUI AddVerboseLabel (string name, float x, float y)
+	{
+		GameObject label = Instantiate(Resources.Load("Prefabs/GUIGenerics/GUILabel") as GameObject, verbosePanel.transform, true);
+		label.name = name;
+		label.GetComponent<RectTransform> ().sizeDelta = new Vector2 (42, 30);
+		label.GetComponent<RectTransform> ().anchoredPosition = new Vector2 (x, y);
+		TextMeshProUGUI text = label.GetComponent<TextMeshProUGUI> ();
+		text.alignment = TextAlignmentOptions.MidlineLeft;
+		text.fontSize = 9;
+		text.textWrappingMode = TextWrappingModes.NoWrap;
+		return text;
 	}
 
-	// Update is called once per frame
-	void Update () {
+	public static string FormatSigned(double value) => value.ToString("+0.0;-0.0;+0.0");
 
+	public static string WheelLabel(int index)
+	{
+		string label = "";
+		do { label = (char)('A' + index % 26) + label; index = index / 26 - 1; } while (index >= 0);
+		return label;
+	}
+
+	private void UpdateScales(){
+		speedScale = ReactionWheelUtilities.MaxSpeed[spacecraftIndex];
+		torqueScale = ReactionWheelUtilities.MaxTorque[spacecraftIndex];
+		myPanel.transform.GetChild(3).GetComponent<TextMeshProUGUI>().text = speedScale.ToString("F1");
+		myPanel.transform.GetChild(4).GetComponent<TextMeshProUGUI>().text = (-speedScale).ToString("F1");
+		myPanel.transform.GetChild(5).GetComponent<TextMeshProUGUI>().text = torqueScale.ToString("F1");
+		myPanel.transform.GetChild(6).GetComponent<TextMeshProUGUI>().text = (-torqueScale).ToString("F1");
+	}
+
+	private void UpdateAllocatorMode(){
+		var hud = StockHud.Current;
+		string mode = hud != null && hud.Spacecraft == spacecraftName ? hud.Text("RW allocator mode") : null;
+		if (allocatorMode == mode) return;
+		allocatorMode = mode;
+		bool show = !string.IsNullOrWhiteSpace(mode);
+		allocatorLabel.gameObject.SetActive(show);
+		if (show) {
+			allocatorLabel.text = "RW Allocator Mode: " + System.Text.RegularExpressions.Regex.Replace(mode, "(?<=[a-z])(?=[A-Z])", " ");
+		}
+		UpdatePanelSize();
+	}
+
+	void Update () {
+		UpdateAllocatorMode();
 		double[] updatedSpeeds = ReactionWheelUtilities.GetReactionWheelSpeeds(spacecraftIndex);
 		double[] updatedTorques = ReactionWheelUtilities.GetReactionWheelTorques (spacecraftIndex);
 
+		if (speedScale != ReactionWheelUtilities.MaxSpeed[spacecraftIndex] || torqueScale != ReactionWheelUtilities.MaxTorque[spacecraftIndex]) {
+			UpdateScales();
+			for (int wheel = 0; wheel < wheelCount; wheel++) {
+				speedBarsList[wheel].GetComponent<BarDisplayMethods>().ChangeMaxValue(speedScale);
+				torqueBarsList[wheel].GetComponent<BarDisplayMethods>().ChangeMaxValue(torqueScale);
+			}
+		}
+
 		for (int wheel = 0; wheel < wheelCount; wheel++) {
-			if (ReactionWheelUtilities.MaxSpeedChange) {
-				UpdateMaxSpeed ((float)ReactionWheelUtilities.MaxSpeed[spacecraftIndex]);
-				ReactionWheelUtilities.MaxSpeedChange = false;
-			}
-				
-			if (ReactionWheelUtilities.MaxTorqueChange) {
-				UpdateMaxTorque((float)ReactionWheelUtilities.MaxTorque[spacecraftIndex]);
-				ReactionWheelUtilities.MaxTorqueChange = false;
-			}
 			speedBarsList [wheel].GetComponent<BarDisplayMethods> ().currentValue = (float)updatedSpeeds[wheel];
 			torqueBarsList [wheel].GetComponent<BarDisplayMethods> ().currentValue = (float)updatedTorques [wheel];
 
 			if (verboseOn) {
-				speedLabelsList [wheel].GetComponent<TextMeshProUGUI> ().text = ((float)updatedSpeeds[wheel]).ToString ("F1");
-				torqueLabelsList [wheel].GetComponent<TextMeshProUGUI> ().text = ((float)updatedTorques[wheel]).ToString ("F1");
+				speedLabelsList [wheel].text = FormatSigned(updatedSpeeds[wheel]);
+				torqueLabelsList [wheel].text = FormatSigned(updatedTorques[wheel]);
 			}
 		}
 	}
 
-	private void UpdateMaxSpeed(float newSpeed){
-		for (int wheel = 0; wheel < wheelCount; wheel++) {
-			speedBarsList [wheel].GetComponent<BarDisplayMethods> ().ChangeMaxValue(newSpeed);
-		}
-		UpdateScales ();
-	}
-
-	private void UpdateMaxTorque(float newTorque){
-		for (int wheel = 0; wheel < wheelCount; wheel++) {
-			torqueBarsList [wheel].GetComponent<BarDisplayMethods> ().ChangeMaxValue(newTorque);
-		}
-		UpdateScales ();
+	private void UpdatePanelSize(){
+		float height = allocatorLabel.gameObject.activeSelf ? 179 : 162;
+		if (verboseOn) height += 41;
+		myPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(42 * wheelCount + 106, height);
+		VizardGUISettings.PanelViewMgr.TelemetryDock?.Reflow(PanelDock.Slot.ReactionWheels);
 	}
 
 	private void ToggleVerboseMode(){
 		verboseOn = !verboseOn;
-
-		if (verboseOn) {
-			myPanel.GetComponent<RectTransform> ().sizeDelta = new Vector2 ((42*wheelCount+66), 205);
-			verbosePanel.SetActive (true);
-
-		} else{
-			verbosePanel.SetActive (false);
-			myPanel.GetComponent<RectTransform> ().sizeDelta = new Vector2 ((42*wheelCount+66), 170);
-
-		}
-			
+		verbosePanel.SetActive(verboseOn);
+		UpdatePanelSize();
 	}
 }
