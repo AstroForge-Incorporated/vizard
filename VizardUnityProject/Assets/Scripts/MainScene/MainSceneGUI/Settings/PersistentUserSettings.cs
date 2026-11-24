@@ -26,6 +26,7 @@ using UnityEngine;
 /// </summary>
 public static class PersistentUserSettings
 {
+    internal const int DefaultGUIReferenceHeight = 900;
     private static string persistentSettingsPath = Application.persistentDataPath+"/VizardPersistentSettings.bin";
     public static VizMessage.Types.VizSettingsPb persistentSettingsFromLastSave = new VizMessage.Types.VizSettingsPb()
     {
@@ -42,7 +43,7 @@ public static class PersistentUserSettings
         SpacecraftShadowBrightness = 0.25,
         SunIntensity = 1,
         AttenuateSunLightWithDistance = -1,
-        CustomGUIReferenceHeight = 768,
+        CustomGUIReferenceHeight = DefaultGUIReferenceHeight,
         SpacecraftSizeMultiplier = 5,
         SpacecraftHelioViewSizeMultiplier = 5,
         CelestialBodyHelioViewSizeMultiplier = 10,
