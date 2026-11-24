@@ -68,6 +68,7 @@ public class PanelViewManager : MonoBehaviour
         {
             TelemetryDock = new PanelDock(guiPanelLayout);
             gameObject.AddComponent<AngularVelocityPanel>();
+            gameObject.AddComponent<DeterminationPanel>();
         }
 
         VizardGUISettings.ColorWheelPanel = colorWheelPanel;
