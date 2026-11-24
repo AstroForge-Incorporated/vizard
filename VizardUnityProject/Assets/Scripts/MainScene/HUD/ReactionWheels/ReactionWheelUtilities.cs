@@ -28,10 +28,7 @@ public static class ReactionWheelUtilities
     public static bool HUDShowSpeed = true;
     public static double[] MaxTorque;
     public static double[] MaxSpeed;
-    public static bool MaxSpeedChange;
-    public static bool MaxTorqueChange;
-
-    private const double RAD_PER_SEC_TO_RPM = 60.0 / (2.0 * Mathf.PI);
+    private const double MillinewtonsPerNewton = 1000.0;
 
     public static void InitializeMaxTorqueAndSpeedArrays()
     {
@@ -41,28 +38,14 @@ public static class ReactionWheelUtilities
         MaxSpeed = new double[scCount];
         for (int i = 0; i < scCount; i++)
         {
-            MaxTorque[i] = 0.001;
-            MaxSpeed[i] = 0.001;
-            //Check for user set maximum values in the messages
-            int rwCount = MessageList.FirstMessage.Spacecraft[i].ReactionWheels.Count;
-            if (rwCount > 0)
+            foreach (var wheel in MessageList.FirstMessage.Spacecraft[i].ReactionWheels)
             {
-                for (int j = 0; j < rwCount; j++)
-                {
-                    double wheelMaxTorque = MessageList.FirstMessage.Spacecraft[i].ReactionWheels[j].MaxTorque;
-                    if (wheelMaxTorque > MaxTorque[i])
-                    {
-                        MaxTorque[i] = wheelMaxTorque;
-                    }
-
-                    double wheelMaxSpeed = RAD_PER_SEC_TO_RPM *
-                                           MessageList.FirstMessage.Spacecraft[i].ReactionWheels[j].MaxSpeed;
-                    if (wheelMaxSpeed > MaxSpeed[i])
-                    {
-                        MaxSpeed[i] = wheelMaxSpeed;
-                    }
-                }
+                MaxTorque[i] = System.Math.Max(MaxTorque[i], MillinewtonsPerNewton * wheel.MaxTorque);
+                MaxSpeed[i] = System.Math.Max(MaxSpeed[i], wheel.MaxSpeed);
             }
+            // The optional limits can be absent until the first nonzero sample.
+            if (MaxTorque[i] <= 0) MaxTorque[i] = 1;
+            if (MaxSpeed[i] <= 0) MaxSpeed[i] = 0.001;
         }
     }
 
@@ -72,15 +55,7 @@ public static class ReactionWheelUtilities
         double[] wheelSpeedArray = new double[wheelCount];
         for (int i = 0; i < wheelCount; i++)
         {
-            //Read wheel speed and convert to rpm
-            wheelSpeedArray[i] = RAD_PER_SEC_TO_RPM *
-                                 MessageList.CurrentMessage.Spacecraft[spacecraftIndex].ReactionWheels[i].WheelSpeed;
-            //Check to see if max speed should be increased
-            if (MaxSpeed[spacecraftIndex] < wheelSpeedArray[i])
-            {
-                MaxSpeed[spacecraftIndex] = wheelSpeedArray[i];
-                MaxSpeedChange = true;
-            }
+            wheelSpeedArray[i] = GetReactionWheelSpeed(spacecraftIndex, i);
         }
 
         return wheelSpeedArray;
@@ -92,13 +67,7 @@ public static class ReactionWheelUtilities
         double[] wheelTorqueArray = new double[wheelCount];
         for (int i = 0; i < wheelCount; i++)
         {
-            wheelTorqueArray[i] = MessageList.CurrentMessage.Spacecraft[spacecraftIndex].ReactionWheels[i].WheelTorque;
-            //Check to see if max torque should be increased
-            if (MaxTorque[spacecraftIndex] < wheelTorqueArray[i])
-            {
-                MaxTorque[spacecraftIndex] = wheelTorqueArray[i];
-                MaxTorqueChange = true;
-            }
+            wheelTorqueArray[i] = GetReactionWheelTorque(spacecraftIndex, i);
         }
 
         return wheelTorqueArray;
@@ -107,29 +76,15 @@ public static class ReactionWheelUtilities
     //The following methods are for retrieving only one wheel's data at a time (used primarily for the HUD display)
     public static double GetReactionWheelTorque(int spacecraftIndex, int wheelIndex)
     {
-        double currentTorque = MessageList.CurrentMessage.Spacecraft[spacecraftIndex].ReactionWheels[wheelIndex]
-            .WheelTorque;
-        if (MaxTorque[spacecraftIndex] < currentTorque)
-        {
-            MaxTorque[spacecraftIndex] = currentTorque;
-            MaxTorqueChange = true;
-        }
-
+        double currentTorque = MillinewtonsPerNewton * MessageList.CurrentMessage.Spacecraft[spacecraftIndex].ReactionWheels[wheelIndex].WheelTorque;
+        MaxTorque[spacecraftIndex] = System.Math.Max(MaxTorque[spacecraftIndex], System.Math.Abs(currentTorque));
         return currentTorque;
     }
 
     public static double GetReactionWheelSpeed(int spacecraftIndex, int wheelIndex)
     {
-        double currentSpeed = RAD_PER_SEC_TO_RPM *
-                              MessageList.CurrentMessage.Spacecraft[spacecraftIndex].ReactionWheels[wheelIndex]
-                                  .WheelSpeed;
-        //Check to see if max speed should be increased
-        if (MaxSpeed[spacecraftIndex] < currentSpeed)
-        {
-            MaxSpeed[spacecraftIndex] = currentSpeed;
-            MaxSpeedChange = true;
-        }
-
+        double currentSpeed = MessageList.CurrentMessage.Spacecraft[spacecraftIndex].ReactionWheels[wheelIndex].WheelSpeed;
+        MaxSpeed[spacecraftIndex] = System.Math.Max(MaxSpeed[spacecraftIndex], System.Math.Abs(currentSpeed));
         return currentSpeed;
     }
 
@@ -150,8 +105,6 @@ public static class ReactionWheelUtilities
     public static void ResetReactionWheelUtilities()
     {
         HUDShowSpeed = true;
-        MaxSpeedChange = false;
-        MaxTorqueChange = false;
         MaxTorque = new double[] { };
         MaxSpeed = new double[] { };
     }
