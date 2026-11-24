@@ -22,25 +22,31 @@ public sealed class GimbalPanel : StockGncPanel
 
     // The stock HUD specifies the column order as "Gimbal [A, B] (θ, φ) Orientation".
     private readonly Column[] columns = { new Column(), new Column() };
+    private static readonly string[] CommandFields = { "Gimbal A commanded", "Gimbal B commanded" };
     private GameObject details;
+    private TextMeshProUGUI targetLabel, deltaLabel;
 
     public static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
     protected override void Show(StockHud hud)
     {
+        bool commanded = hud?.Text(CommandFields[0]) != null || hud?.Text(CommandFields[1]) != null;
         if (Panel == null)
         {
-            if (hud?.Text("Truth") == null && hud?.Text("Ref") == null) return;
+            if (!commanded && hud?.Text("Truth") == null && hud?.Text("Ref") == null) return;
             Build();
         }
 
+        targetLabel.text = commanded ? "Commanded" : "Slew reference";
+        deltaLabel.text = commanded ? "Δ to command" : "Δ to reference";
         float maxTilt = TiltScaleStep;
         for (int i = 0; i < columns.Length; i++)
         {
             var column = columns[i];
             column.current = hud?.Pair("Truth", i);
-            column.reference = hud?.Pair("Ref", i);
-            maxTilt = Mathf.Max(maxTilt, Mathf.Max(column.current?[1] ?? 0, column.reference?[1] ?? 0));
+            column.reference = commanded ? hud.Pair(CommandFields[i], 0) : hud?.Pair("Ref", i);
+            if (!commanded)
+                maxTilt = Mathf.Max(maxTilt, Mathf.Max(column.current?[1] ?? 0, column.reference?[1] ?? 0));
         }
         // Both tilt gauges use the same plot scale. The stock HUD omits mechanical limits.
         float tiltScale = TiltScaleStep * Mathf.Ceil(maxTilt / TiltScaleStep);
@@ -55,8 +61,8 @@ public sealed class GimbalPanel : StockGncPanel
                 PlaceMarker(column.referenceMarkers[axis], column.reference, axis, scale);
                 PlaceMarker(column.currentMarkers[axis], column.current, axis, scale);
             }
-            column.referenceText.text = Pair(column.reference);
-            column.currentText.text = Pair(column.current);
+            column.referenceText.text = GaugeReading(column.reference, commanded);
+            column.currentText.text = GaugeReading(column.current, commanded);
             column.deltaText.text = column.reference == null || column.current == null ? Missing :
                 Pair(Mathf.Abs(Mathf.DeltaAngle(column.current[0], column.reference[0])),
                     Mathf.Abs(column.current[1] - column.reference[1]));
@@ -68,6 +74,13 @@ public sealed class GimbalPanel : StockGncPanel
 
     private static string Pair(float[] angles) => angles == null ? Missing : Pair(angles[0], angles[1]);
     private static string Pair(float theta, float phi) => FormattableString.Invariant($"({theta:F1}, {phi:F1})°");
+
+    private static string GaugeReading(float[] angles, bool commanded)
+    {
+        bool offScale = commanded && angles != null &&
+            (angles[0] < 0 || angles[0] > 360 || angles[1] < 0 || angles[1] > TiltScaleStep);
+        return Pair(angles) + (offScale ? " !" : "");
+    }
 
     private static void PlaceMarker(RectTransform marker, float[] angles, int axis, float scale)
     {
@@ -84,9 +97,9 @@ public sealed class GimbalPanel : StockGncPanel
         var buttonPrefab = Resources.Load<GameObject>("Prefabs/SpacecraftPanels/ReactionWheelsPanel").transform.Find("VerboseButton");
         var button = Instantiate(buttonPrefab, Panel.transform, false).GetComponent<Button>();
         button.onClick.AddListener(ToggleDetails);
-        DetailLabel("Slew reference", 4, 20, 100, Yellow);
+        targetLabel = DetailLabel("Slew reference", 4, 20, 100, Yellow);
         DetailLabel("Current", 4, 38, 100, Cyan);
-        DetailLabel("Δ to reference", 4, 56, 100, Color.white);
+        deltaLabel = DetailLabel("Δ to reference", 4, 56, 100, Color.white);
         DetailLabel("Tracking error", 4, 74, 100, Color.white);
         Bar("Divider", Width / 2, 28, 1, 112, new Color(1, 1, 1, .25f));
 
