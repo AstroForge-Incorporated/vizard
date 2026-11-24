@@ -18,6 +18,7 @@
  */
 
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -43,6 +44,7 @@ public class GenericStoragePanelMethods : MonoBehaviour
 	private int verboseWidth = 30;
 	private int deviceCount;
 	private bool verboseOn;
+	private bool compact;
 	private readonly float pixelsPerCharacter=7f;
 
 	public void InitializePanel(int scIndex, string scName){
@@ -60,8 +62,16 @@ public class GenericStoragePanelMethods : MonoBehaviour
 
 		transform.gameObject.name = spacecraftName+"StoragePanel";
 		deviceCount = MessageList.FirstMessage.Spacecraft[scIndex].StorageDevices.Count;
-		if (deviceCount ==1){
-			ypos=-30;
+		compact = !DataManager.UseVR && deviceCount == 1
+			&& MessageList.FirstMessage.Spacecraft.Count(sc => sc.StorageDevices.Count > 0) == 1;
+		if (compact) {
+			ypos = -11;
+			verboseOn = true;
+			panelLabel.gameObject.SetActive(false);
+			transform.Find("CloseButton").GetComponent<RectTransform>().anchoredPosition = new Vector2(5, -11);
+			verboseButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(-10, 0);
+		} else if (deviceCount == 1) {
+			ypos = -30;
 		}
 
 		for (int i = 0; i < deviceCount; i++)
@@ -73,7 +83,7 @@ public class GenericStoragePanelMethods : MonoBehaviour
 				: Instantiate(Resources.Load("Prefabs/SpacecraftPanels/GenericStoragePanelUnit") as GameObject);
 
 			bar.transform.SetParent(transform);
-			bar.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, ypos);
+			bar.GetComponent<RectTransform>().anchoredPosition = new Vector2(compact ? 25 : 0, ypos);
 			ypos-=20;
 
 			bar.GetComponent<GenericStorageUnitMethods>().InitializeStorageUnit(i, scIndex, sd);
@@ -93,10 +103,20 @@ public class GenericStoragePanelMethods : MonoBehaviour
 		}
 
 		verboseWidth = (verboseLength*5);
+		if (compact) {
+			barWidth = Mathf.Max(140, deviceNameLength * 7);
+			var storage = MessageList.FirstMessage.Spacecraft[scIndex].StorageDevices[0];
+			var text = myBars[0].GetComponent<GenericStorageUnitMethods>().verboseText;
+			text.gameObject.SetActive(true);
+			text.alignment = TextAlignmentOptions.MidlineLeft;
+			verboseWidth = Mathf.CeilToInt(text.GetPreferredValues(GenericStorageUnitMethods.FormatReading(
+				storage.MaxValue, storage.MaxValue, storage.Units)).x) + 10;
+		}
 
 		foreach(GameObject bar in myBars){
 			bar.GetComponent<GenericStorageUnitMethods>().SetBarWidth(barWidth);
 			bar.GetComponent<GenericStorageUnitMethods>().SetVerboseTextWidth(verboseWidth);
+			bar.GetComponent<GenericStorageUnitMethods>().verboseText.gameObject.SetActive(verboseOn);
 		}
 
 		if (!DataManager.UseVR)
@@ -108,7 +128,7 @@ public class GenericStoragePanelMethods : MonoBehaviour
 	}
 
 	private void SetPanelSize(){
-		int panelWidth = barWidth+30;
+		int panelWidth = barWidth + (compact ? 60 : 30);
 		if (verboseOn){
 			panelWidth +=verboseWidth;
 		}
@@ -117,7 +137,7 @@ public class GenericStoragePanelMethods : MonoBehaviour
 		if (panelHeight < 60f){
 			panelHeight = 60f;
 		}
-		GetComponent<RectTransform>().sizeDelta = new Vector2(panelWidth, panelHeight);
+		GetComponent<RectTransform>().sizeDelta = new Vector2(panelWidth, compact ? 42 : panelHeight);
 	}
 
 	private void ToggleVerbose(){
