@@ -67,6 +67,7 @@ public class PanelViewManager : MonoBehaviour
         if (!DataManager.UseVR && !DataManager.InNoDisplayMode)
         {
             TelemetryDock = new PanelDock(guiPanelLayout);
+            gameObject.AddComponent<AngularVelocityPanel>();
         }
 
         VizardGUISettings.ColorWheelPanel = colorWheelPanel;
