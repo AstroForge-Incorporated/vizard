@@ -13,16 +13,17 @@ public sealed class PropulsionPanel : MonoBehaviour
 {
     private const string Missing = "—";
     private const string ManeuverField = "Propulsive Maneuver time remaining";
+    private const string StateField = "Reported propulsion state";
     private const float Width = 300;
     private GameObject panel;
     private string spacecraft;
     private int tankIndex;
     private Storage firstTank;
-    private TextMeshProUGUI remaining, used, maneuver, maneuverLabel;
+    private TextMeshProUGUI remaining, used, maneuver, maneuverLabel, state, stateLabel;
     private readonly List<(string body, int index, string tag, TextMeshProUGUI value)> thrusters = new();
     private VizMessage lastFrame;
     private StockHud lastHud;
-    private float maneuverTop;
+    private float statusTop;
     private RectTransform fuelRows;
     private Image fuelDivider;
 
@@ -44,7 +45,7 @@ public sealed class PropulsionPanel : MonoBehaviour
             if (hub == null) return;
             bool hasThrusters = first.Spacecraft.Any(body => body.Thrusters.Count > 0
                 && (body.SpacecraftName == hub.SpacecraftName || body.ParentSpacecraftName == hub.SpacecraftName));
-            if (!hasThrusters && TankIndex(hub) < 0 && hud?.Text(ManeuverField) == null) return;
+            if (!hasThrusters && TankIndex(hub) < 0 && hud?.Text(ManeuverField) == null && hud?.Text(StateField) == null) return;
             Build(first, hub);
         }
 
@@ -59,20 +60,36 @@ public sealed class PropulsionPanel : MonoBehaviour
                 ? FormattableString.Invariant($"{(firstTank.CurrentValue - tank.CurrentValue) * 1000:F2} g") : Missing;
         }
 
+        var craftHud = hud?.Spacecraft == spacecraft ? hud : null;
+        string selected = craftHud?.Text("Selected thruster");
+        string point = craftHud?.Text("Thrust point");
         foreach (var (body, index, tag, value) in thrusters)
         {
             var current = FindBody(frame, body)?.Thrusters;
             var thruster = current != null && index < current.Count ? current[index] : null;
-            value.text = thruster != null && (thruster.ThrusterTag.Length == 0 || thruster.ThrusterTag == tag)
+            string thrust = thruster != null && (thruster.ThrusterTag.Length == 0 || thruster.ThrusterTag == tag)
                 ? FormatThrust(thruster.CurrentThrust) : Missing;
+            if (tag == selected)
+                thrust += point == null || point == "Undefined" ? " (selected)" : $" ({point})";
+            value.text = thrust;
         }
 
-        var seconds = hud?.Spacecraft == spacecraft ? hud.Text(ManeuverField) : null;
+        string reported = craftHud?.Text(StateField);
+        (state.text, state.color) = reported switch
+        {
+            "NotArmed" => ("Standby (not armed)", StockGncPanel.Green),
+            "Armed" => ("Armed", DeterminationPanel.Amber),
+            "Firing" => ("Firing", StockGncPanel.Red),
+            "Undefined" => ("None selected", Color.white),
+            _ => (reported ?? Missing, Color.white)
+        };
+        bool showState = reported != null;
+        var seconds = craftHud?.Text(ManeuverField);
         bool showManeuver = double.TryParse(seconds, NumberStyles.Float, CultureInfo.InvariantCulture, out double duration)
             && Valid(duration);
         maneuver.text = showManeuver ? seconds + " s" : Missing;
-        if (showManeuver != maneuver.gameObject.activeSelf)
-            SetManeuverVisible(showManeuver);
+        if (showState != state.gameObject.activeSelf || showManeuver != maneuver.gameObject.activeSelf)
+            SetStatusVisible(showState, showManeuver);
     }
 
     private static bool Valid(double value) => value >= 0 && !double.IsInfinity(value);
@@ -127,7 +144,9 @@ public sealed class PropulsionPanel : MonoBehaviour
                 thrusters.Add((body.SpacecraftName, i, tag, value));
             }
         }
-        maneuverTop = y;
+        statusTop = y;
+        stateLabel = StockPanelView.Label(panel.transform, "Reported state", 12, y, 125);
+        state = StockPanelView.Label(panel.transform, Missing, 141, y, Width - 150);
         maneuverLabel = StockPanelView.Label(panel.transform, "Maneuver remaining", 12, y, 125);
         maneuver = StockPanelView.Label(panel.transform, Missing, 141, y, Width - 150);
         if (tankIndex >= 0)
@@ -152,17 +171,22 @@ public sealed class PropulsionPanel : MonoBehaviour
             if (hub.StorageDevices.Count == 1)
                 VizardGUISettings.PanelViewMgr.HideDuplicatePropellant(spacecraft);
         }
-        SetManeuverVisible(true);
+        SetStatusVisible(false, true);
     }
 
-    private void SetManeuverVisible(bool visible)
+    private void SetStatusVisible(bool showState, bool showManeuver)
     {
-        maneuver.gameObject.SetActive(visible);
-        maneuverLabel.gameObject.SetActive(visible);
-        float y = maneuverTop + (visible ? 20 : 0);
+        state.gameObject.SetActive(showState);
+        stateLabel.gameObject.SetActive(showState);
+        float y = statusTop + (showState ? 20 : 0);
+        maneuverLabel.rectTransform.anchoredPosition = new Vector2(12, -y);
+        maneuver.rectTransform.anchoredPosition = new Vector2(141, -y);
+        maneuver.gameObject.SetActive(showManeuver);
+        maneuverLabel.gameObject.SetActive(showManeuver);
+        if (showManeuver) y += 20;
         if (fuelRows != null)
         {
-            fuelDivider.enabled = visible || thrusters.Count > 0;
+            fuelDivider.enabled = showState || showManeuver || thrusters.Count > 0;
             if (fuelDivider.enabled) y += 8;
             fuelRows.anchoredPosition = new Vector2(0, -y);
             y += fuelRows.sizeDelta.y;
