@@ -154,6 +154,15 @@ public class AlertIconManager : MonoBehaviour
         }
     }
 
+    public void DockReplayNotificationButton(Transform playArea)
+    {
+        var rect = (RectTransform)notificationButton.transform;
+        rect.SetParent(playArea, false);
+        rect.anchorMin = rect.anchorMax = Vector2.zero;
+        // Align with the minus control at the lower left of the play area.
+        rect.anchoredPosition = new Vector2(18f, 30f);
+    }
+
     public void AddMinimizedPanel(GameObject newPanel, string type)
     {
         bool updateInventory = (minimizedPanelInventory.activeSelf && (type == currentInventoryType));

@@ -60,6 +60,7 @@ public class EventDialogHandler : MonoBehaviour
     private bool leavePanelOnDisplayUntilClosedByUser;
     private bool autoClickConfirm;
     private bool firstUpdate = true;
+    private bool minimizedForStockTelemetry;
 
     private int gridPositionIndex;
     private int gridLayerIndex;
@@ -191,6 +192,22 @@ public class EventDialogHandler : MonoBehaviour
         {
             PanelMinimizeButtonWasClicked();
         }
+        else if (!DataManager.IsLiveSim && !DataManager.UseVR && !DataManager.InNoDisplayMode
+            && CanStartMinimized(dialogMsg) && StockHud.SingleSpacecraft(MessageList.FirstMessage) != null)
+        {
+            // A user can reopen the original text from Notifications. Initial layout sends no reply.
+            minimizedForStockTelemetry = true;
+            eventDialogPanel.SetActive(false);
+            myManager.alertIconMgr.DockReplayNotificationButton(myManager.eventDialogPanels.transform);
+            myManager.EventDialogMinimized(gameObject, panelType);
+        }
+    }
+
+    private static bool CanStartMinimized(VizEventDialog dialog)
+    {
+        return StockHud.IsTelemetry(dialog) && !dialog.ForceEventDialogMaximize && dialog.HideOnSelection == 0
+            && dialog.UseConfirmationPanel == 0 && !dialog.UseSimElapsedTimeForDuration
+            && (dialog.DialogFormat.Length == 0 || string.Equals(dialog.DialogFormat, "none", StringComparison.OrdinalIgnoreCase));
     }
 
     private void OptionButtonWasClicked(string buttonOption)
@@ -302,6 +319,15 @@ public class EventDialogHandler : MonoBehaviour
             leavePanelOnDisplayUntilClosedByUser = durationOfDisplay == 0;
 
             dialogText.text = updateMsg.DisplayString;
+            if (minimizedForStockTelemetry && !CanStartMinimized(updateMsg))
+            {
+                minimizedForStockTelemetry = false;
+                if (updateMsg.HideOnSelection != -100)
+                {
+                    eventDialogPanel.SetActive(true);
+                    RemovePanelFromInventory();
+                }
+            }
 
             //Replace the options
             foreach (Transform child in optionButtonContainer) //Get rid of the old option buttons
@@ -380,6 +406,7 @@ public class EventDialogHandler : MonoBehaviour
 
     public void TogglePanelDisplay()
     {
+        minimizedForStockTelemetry = false;
         eventDialogPanel.SetActive(!eventDialogPanel.activeSelf);
         if (eventDialogPanel.activeSelf)
         {
