@@ -19,6 +19,8 @@
 using UnityEngine;
 using UnityEngine.Assertions;
 using System.Collections.Generic;
+using System.IO;
+using VizProtobufferMessage;
 
 
 public class TestMessageList : MonoBehaviour
@@ -34,10 +36,53 @@ public class TestMessageList : MonoBehaviour
         Assert.AreEqual(10000000, MessageList.GetBufferLimit()); //Check the default buffer limit has not changed
         Assert.AreEqual(10, MessageList.GetIndexSpacing()); //Check the default message count between file indices has not changed
 
+        TestStockHudAcrossBufferSeeks();
         bool smallBufferPass = Test_LoadSmallBuffer(testFilePath);
         bool fullFilePass = Test_LoadEntireFileIntoBuffer(testFilePath);
 
         return "\t All MessageList.cs tests passed.\n";
+    }
+
+    private static void TestStockHudAcrossBufferSeeks()
+    {
+        string path = Path.GetTempFileName();
+        try
+        {
+            using (var output = File.Create(path))
+            {
+                for (int frame = 0; frame < 100; frame++)
+                {
+                    var message = new VizMessage {
+                        CurrentTime = new VizMessage.Types.TimeStamp { FrameNumber = frame + 1, SimTimeElapsed = frame },
+                        Spacecraft = { new VizMessage.Types.Spacecraft { SpacecraftName = "Test spacecraft" } }
+                    };
+                    if (frame == 0) message.Settings = new VizMessage.Types.VizSettingsPb();
+                    if (frame == 3 || frame == 50)
+                    {
+                        message.VizEventDialogs.Add(new VizEventDialog {
+                            EventHandlerID = "HUD",
+                            DisplayString = $"Live Data:\nSC omega_b truth: [{frame}, 0, 0] [deg/s]"
+                        });
+                    }
+                    Google.Protobuf.MessageExtensions.WriteDelimitedTo(message, output);
+                }
+            }
+
+            bool loaded = MessageList.FirstMessageBuffersReadFromFile(path, 256);
+            Assert.IsTrue(loaded);
+            Assert.IsNull(StockHud.Current);
+            foreach (var (destination, sampleFrame) in new[] { (80, 50), (35, 3) })
+            {
+                MessageList.SetNextIndex(destination, true);
+                if (MessageList.DesiredNextIndex >= 0) MessageList.SetNextIndex(destination);
+                Assert.IsNull(MessageList.GetMessageAtIndex(sampleFrame));
+                Assert.AreEqual((float)sampleFrame, StockHud.Current.Numbers("SC omega_b truth")[0]);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
     
     public bool Test_LoadSmallBuffer(string testFilePath){

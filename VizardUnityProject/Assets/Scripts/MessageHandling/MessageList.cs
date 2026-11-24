@@ -225,6 +225,7 @@ public static class MessageList
         if (!InBufferLoad)
         {
             ResetMessageListVariables();
+            StockHudPlayback.StartFile(filename);
             InBufferLoad = true;
             messages.Clear();
             messageFilePositions = new List<long>();
@@ -246,6 +247,8 @@ public static class MessageList
                             messageFilePositions.Add(msgFile.Position);
                         }
 
+                        long frameOffset = msgFile.Position;
+                        int frameIndex = timestepsTotal;
                         VizMessage message = VizMessage.Parser.ParseDelimitedFrom(msgFile);
                         messageReadAttempt++;
                         
@@ -286,7 +289,7 @@ public static class MessageList
 
                             timestepsTotal++;
                         }
-
+                        if (timestepsTotal > frameIndex) StockHudPlayback.IndexFileFrame(frameIndex, frameOffset, message);
                     }
                     catch(Exception ex)
                     {
