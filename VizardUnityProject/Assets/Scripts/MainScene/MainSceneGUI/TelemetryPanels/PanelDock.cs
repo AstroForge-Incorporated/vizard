@@ -4,7 +4,7 @@ using UnityEngine;
 
 public sealed class PanelDock
 {
-    public enum Slot { Determination, AngularVelocity, Guidance, StarTrackers, ReactionWheels, Propulsion, GimbalLimits, Storage }
+    public enum Slot { Determination, AngularVelocity, Guidance, StarTrackers, ReactionWheels, MomentumAllocator, Propulsion, GimbalLimits, Storage }
 
     // Each column follows Slot order. A panel only occupies space after it exists.
     private readonly GUIPanelLayout cascade;

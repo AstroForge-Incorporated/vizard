@@ -54,7 +54,7 @@ public abstract class StockGncPanel : MonoBehaviour
         return image.rectTransform;
     }
 
-    private static void Place(RectTransform rect, float x, float y, float width, float height)
+    protected static void Place(RectTransform rect, float x, float y, float width, float height)
     {
         rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0, 1);
         rect.anchoredPosition = new Vector2(x, -y);
