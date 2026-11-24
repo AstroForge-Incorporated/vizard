@@ -33,6 +33,7 @@ public class PanelViewManager : MonoBehaviour
     [Header("GUI Components")]
     public GameObject panelCanvas;
     public GUIPanelLayout guiPanelLayout;
+    internal PanelDock TelemetryDock { get; private set; }
     
     [Header ("Main Menu GUI Components")]
     public GameObject loadNewFileButton;
@@ -63,6 +64,11 @@ public class PanelViewManager : MonoBehaviour
     private void Awake()
     {
         guiPanelLayout = transform.GetComponent<GUIPanelLayout>();
+        if (!DataManager.UseVR && !DataManager.InNoDisplayMode)
+        {
+            TelemetryDock = new PanelDock(guiPanelLayout);
+        }
+
         VizardGUISettings.ColorWheelPanel = colorWheelPanel;
         VizardGUISettings.FadingStatusTextBox = fadingStatusText;
         addCameraButton.onClick.AddListener(AddStandardCameraPanel);
@@ -305,6 +311,15 @@ public class PanelViewManager : MonoBehaviour
         panel.SetActive(true);
         toggle.GetComponent<RectTransform>().localScale = Vector3.one;
         panel.GetComponent<RectTransform>().localScale = Vector3.one;
+    }
+
+    internal void RegisterTelemetryPanel(GameObject panel, string title)
+    {
+        panel.transform.SetParent(guiPanelLayout.transform, false);
+        var toggle = CreateToggleForPanel(title, panel, actuatorSubPanel);
+        panel.GetComponentInChildren<ClosePanelButton>().SetMyToggle(toggle);
+        toggle.GetComponent<Toggle>().isOn = true;
+        ResizePanel(actuatorSubPanel);
     }
 
     private void CreateReactionWheelToggleAndPanel(string toggleName, int scIndex, string spacecraftName)
