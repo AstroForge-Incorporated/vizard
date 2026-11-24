@@ -73,7 +73,7 @@ Shader "Vizard/XenonPlume"
                     float width = exp(-2.6 * z);
                     float r = abs(i.profile.x) / width;
                     float core = exp(-8 * r * r);
-                    density = (exp(-2 * r * r) + 0.6 * core) * exp(-5 * z)
+                    density = 1.3 * (exp(-2 * r * r) + 0.6 * core) * exp(-4 * z)
                         * (1 - smoothstep(0.8, 1, abs(i.profile.x))) * (1 - smoothstep(0.65, 1, i.profile.y));
                     color = lerp(float3(0.35, 0.80, 1), float3(0.70, 0.95, 1), core * exp(-5 * z));
                 }
