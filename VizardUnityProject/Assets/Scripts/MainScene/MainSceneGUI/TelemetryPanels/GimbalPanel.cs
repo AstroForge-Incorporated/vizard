@@ -22,41 +22,53 @@ public sealed class GimbalPanel : StockGncPanel
 
     // The stock HUD specifies the column order as "Gimbal [A, B] (θ, φ) Orientation".
     private readonly Column[] columns = { new Column(), new Column() };
+    private static readonly string[] CommandFields = { "Gimbal A commanded", "Gimbal B commanded" };
+    private static readonly string[] TiltLimitFields = { "Gimbal A phi limit", "Gimbal B phi limit" };
     private GameObject details;
+    private TextMeshProUGUI targetLabel, deltaLabel;
 
     public static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
     protected override void Show(StockHud hud)
     {
+        bool commanded = hud?.Text(CommandFields[0]) != null || hud?.Text(CommandFields[1]) != null;
         if (Panel == null)
         {
-            if (hud?.Text("Truth") == null && hud?.Text("Ref") == null) return;
+            if (!commanded && hud?.Text("Truth") == null && hud?.Text("Ref") == null) return;
             Build();
         }
 
+        targetLabel.text = commanded ? "Commanded" : "Slew reference";
+        deltaLabel.text = commanded ? "Δ to command" : "Δ to reference";
         float maxTilt = TiltScaleStep;
         for (int i = 0; i < columns.Length; i++)
         {
             var column = columns[i];
             column.current = hud?.Pair("Truth", i);
-            column.reference = hud?.Pair("Ref", i);
-            maxTilt = Mathf.Max(maxTilt, Mathf.Max(column.current?[1] ?? 0, column.reference?[1] ?? 0));
+            column.reference = commanded ? hud.Pair(CommandFields[i], 0) : hud?.Pair("Ref", i);
+            if (!commanded)
+                maxTilt = Mathf.Max(maxTilt, Mathf.Max(column.current?[1] ?? 0, column.reference?[1] ?? 0));
         }
-        // Both tilt gauges use the same plot scale. The stock HUD omits mechanical limits.
-        float tiltScale = TiltScaleStep * Mathf.Ceil(maxTilt / TiltScaleStep);
+        // Older recordings use a shared tilt scale when they supply only the slew reference.
+        float referenceScale = TiltScaleStep * Mathf.Ceil(maxTilt / TiltScaleStep);
         var separation = hud?.Numbers("Angular diff");
         for (int i = 0; i < columns.Length; i++)
         {
             var column = columns[i];
-            column.tiltScale.text = tiltScale.ToString("0", CultureInfo.InvariantCulture);
+            float? fixedTiltLimit = commanded ? TiltScaleStep : (float?)null;
+            if (float.TryParse(hud?.Text(TiltLimitFields[i]), NumberStyles.Float, CultureInfo.InvariantCulture,
+                    out float recordedLimit) && Finite(recordedLimit) && recordedLimit > 0)
+                fixedTiltLimit = recordedLimit;
+            float tiltScale = fixedTiltLimit ?? referenceScale;
+            column.tiltScale.text = tiltScale.ToString(CultureInfo.InvariantCulture);
             for (int axis = 0; axis < 2; axis++)
             {
                 float scale = axis == 0 ? 360 : tiltScale;
                 PlaceMarker(column.referenceMarkers[axis], column.reference, axis, scale);
                 PlaceMarker(column.currentMarkers[axis], column.current, axis, scale);
             }
-            column.referenceText.text = Pair(column.reference);
-            column.currentText.text = Pair(column.current);
+            column.referenceText.text = GaugeReading(column.reference, fixedTiltLimit);
+            column.currentText.text = GaugeReading(column.current, fixedTiltLimit);
             column.deltaText.text = column.reference == null || column.current == null ? Missing :
                 Pair(Mathf.Abs(Mathf.DeltaAngle(column.current[0], column.reference[0])),
                     Mathf.Abs(column.current[1] - column.reference[1]));
@@ -68,6 +80,13 @@ public sealed class GimbalPanel : StockGncPanel
 
     private static string Pair(float[] angles) => angles == null ? Missing : Pair(angles[0], angles[1]);
     private static string Pair(float theta, float phi) => FormattableString.Invariant($"({theta:F1}, {phi:F1})°");
+
+    private static string GaugeReading(float[] angles, float? fixedTiltLimit)
+    {
+        bool offScale = fixedTiltLimit.HasValue && angles != null &&
+            (angles[0] < 0 || angles[0] > 360 || angles[1] < 0 || angles[1] > fixedTiltLimit.Value);
+        return Pair(angles) + (offScale ? " !" : "");
+    }
 
     private static void PlaceMarker(RectTransform marker, float[] angles, int axis, float scale)
     {
@@ -84,9 +103,9 @@ public sealed class GimbalPanel : StockGncPanel
         var buttonPrefab = Resources.Load<GameObject>("Prefabs/SpacecraftPanels/ReactionWheelsPanel").transform.Find("VerboseButton");
         var button = Instantiate(buttonPrefab, Panel.transform, false).GetComponent<Button>();
         button.onClick.AddListener(ToggleDetails);
-        DetailLabel("Slew reference", 4, 20, 100, Yellow);
+        targetLabel = DetailLabel("Slew reference", 4, 20, 100, Yellow);
         DetailLabel("Current", 4, 38, 100, Cyan);
-        DetailLabel("Δ to reference", 4, 56, 100, Color.white);
+        deltaLabel = DetailLabel("Δ to reference", 4, 56, 100, Color.white);
         DetailLabel("Tracking error", 4, 74, 100, Color.white);
         Bar("Divider", Width / 2, 28, 1, 112, new Color(1, 1, 1, .25f));
 
