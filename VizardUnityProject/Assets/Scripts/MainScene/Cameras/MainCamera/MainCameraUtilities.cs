@@ -39,6 +39,24 @@ public static class MainCameraUtilities
     public static bool CameraTargetIsSpacecraftOrEffector; //True if current main camera target is a spacecraft or effector
     public static int CameraTargetParentBodyIndex;  //Index of camera target's parent body in VizMessage.CelestialBodies[]
 
+    public static Vector3 CameraFocusPosition
+    {
+        get
+        {
+            if (CameraTarget == null) return Vector3.zero;
+            if (CelestialBodyStateUtilities.ViewIsSpacecraftLocal &&
+                CameraTarget.TryGetComponent(out SpacecraftController spacecraft))
+            {
+                return spacecraft.MeshCenterWorld;
+            }
+            return CameraTarget.transform.position;
+        }
+    }
+
+    // Planet and solar system views orbit the scene origin.
+    public static Vector3 CameraOrbitPivot => CelestialBodyStateUtilities.ViewIsSpacecraftLocal
+        ? CameraFocusPosition : Vector3.zero;
+
     //Range to main target
     private static double trueCameraDistanceToTargetMeters; //[meters] True distance from camera to camera target in meters (spacecraft local view) (when distance is greater than projection wall, this value will be increased without moving camera and used to scale all objects
     
@@ -93,8 +111,11 @@ public static class MainCameraUtilities
             return UnitTestCameraPosition;
         }
 
-        Vector3 camPosition = MainCamera.gameObject.transform.position.normalized;
-        return new [] {camPosition.x*TrueCameraDistanceToTargetMeters, camPosition.y*TrueCameraDistanceToTargetMeters, camPosition.z*TrueCameraDistanceToTargetMeters};
+        Vector3 camPosition = MainCamera.transform.position;
+        // The true range and the displayed range must use the same focus.
+        float displayedRange = (camPosition - CameraOrbitPivot).magnitude;
+        double metersPerUnit = displayedRange > 0 ? TrueCameraDistanceToTargetMeters / displayedRange : 0;
+        return new[] { camPosition.x * metersPerUnit, camPosition.y * metersPerUnit, camPosition.z * metersPerUnit };
     }
     
     /// <summary>

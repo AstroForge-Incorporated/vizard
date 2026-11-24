@@ -228,12 +228,12 @@ public class VizardVR_MainCameraMovementController : MainCameraMovementControlle
             Vector3 viewPointUp = viewpoints[desiredViewpoint][1];
 
             //Calculate current distance to target
-            Vector3 targetPosition = MainCameraUtilities.CameraTarget.transform.position;
+            Vector3 targetPosition = MainCameraUtilities.CameraFocusPosition;
             float distToTarget = (targetPosition - cameraRigTransform.position).magnitude;
 
             //Move camera rig to new viewpoint as same distance from target
             cameraRigTransform.transform.position = targetPosition + distToTarget * viewPointVector;
-            cameraRigTransform.transform.LookAt(MainCameraUtilities.CameraTarget.transform, viewPointUp);
+            cameraRigTransform.LookAt(targetPosition, viewPointUp);
             MainCameraViewMgr.SetOffset();
 
             //Display alert to user of new viewpoint

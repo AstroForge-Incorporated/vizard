@@ -125,8 +125,9 @@ public class MainCameraMovementController : MonoBehaviour
         float deltaPitch = -inputYaxis * MainCameraUtilities.UserInputRotateSpeed;
         if ((deltaYaw != 0) || (deltaPitch != 0))
         {
-            cameraRigTransform.RotateAround(Vector3.zero, cameraRigTransform.up, deltaYaw);
-            cameraRigTransform.RotateAround(Vector3.zero, cameraRigTransform.right, deltaPitch);
+            Vector3 pivot = MainCameraUtilities.CameraOrbitPivot;
+            cameraRigTransform.RotateAround(pivot, cameraRigTransform.up, deltaYaw);
+            cameraRigTransform.RotateAround(pivot, cameraRigTransform.right, deltaPitch);
             MainCameraViewMgr.SetOffset();
             MainCameraViewMgr.SetUp();
         }
@@ -215,9 +216,18 @@ public class MainCameraMovementController : MonoBehaviour
             minDistance = 2f * MainCameraUtilities.CameraTarget.transform.localScale.magnitude;
         }
 
-        if (cameraRigTransform.position.magnitude > minDistance)
+        Vector3 toFocus = MainCameraUtilities.CameraOrbitPivot - cameraRigTransform.position;
+        if (toFocus.magnitude > minDistance)
         {
-            cameraRigTransform.position /= 2f;
+            if (targetIsSpacecraft)
+            {
+                CalculateCameraPositionForSpacecraftLocal(
+                    (float)(-0.5 * MainCameraUtilities.TrueCameraDistanceToTargetMeters), toFocus);
+            }
+            else
+            {
+                cameraRigTransform.position /= 2f;
+            }
             MainCameraViewMgr.SetOffset();
         }
     }
@@ -242,7 +252,7 @@ public class MainCameraMovementController : MonoBehaviour
         if (zoomMode != 0) //zooming 
         {
             Vector3 camVectorToTargetUnityUnits =
-                (MainCameraUtilities.CameraTarget.transform).position - cameraRigTransform.position;
+                MainCameraUtilities.CameraFocusPosition - cameraRigTransform.position;
 
             //Check for camera position being within the current view's boundary, otherwise trigger transition to new view
             if (MainCameraViewMgr.CameraWithinCurrentViewBoundary(camVectorToTargetUnityUnits
@@ -317,25 +327,10 @@ public class MainCameraMovementController : MonoBehaviour
         double distanceToPlaceCameraUnityUnits = newDistanceToCameraMeters *
                                                  CelestialBodyStateUtilities.SpacecraftLocalViewScale;
 
-        //If the distance to place the camera in Unity Units is greater than the projection 
-        //wall distance, the camera will not move, the overall scale of the objects will shrink
-        //This reduces floating point distance issues. 
-        if (distanceToPlaceCameraUnityUnits <
-            MainCameraUtilities
-                .DistanceToProjectionWallUnityUnits) //Distance to projection wall has been scaled by scLocalScale
-        {
-            //Camera remains within projection wall distance, can be placed at distance in Unity Units away
-            cameraRigTransform.position =
-                -camVectorToTargetUnityUnits.normalized *
-                (float) distanceToPlaceCameraUnityUnits;
-        }
-        else
-        {
-            //Camera should be placed at projection wall
-            cameraRigTransform.position =
-                -camVectorToTargetUnityUnits.normalized *
-                (float) MainCameraUtilities.DistanceToProjectionWallUnityUnits;
-        }
+        // Beyond the projection wall, Vizard scales the scene instead of moving the camera farther.
+        float distance = (float)System.Math.Min(distanceToPlaceCameraUnityUnits,
+            MainCameraUtilities.DistanceToProjectionWallUnityUnits);
+        cameraRigTransform.position = MainCameraUtilities.CameraFocusPosition - camVectorToTargetUnityUnits.normalized * distance;
     }
 
     /// <summary>
@@ -348,7 +343,7 @@ public class MainCameraMovementController : MonoBehaviour
         //Apply horizontal panning
         if (MainCameraUtilities.KeyHorizPan != 0)
         {
-            transform.RotateAround(Vector3.zero, transform.up,
+            transform.RotateAround(MainCameraUtilities.CameraOrbitPivot, transform.up,
                 MainCameraUtilities.KeyHorizPan * MainCameraUtilities.KeyPanRate * elapsedSeconds);
             changeOffset = true;
         }
@@ -356,7 +351,7 @@ public class MainCameraMovementController : MonoBehaviour
         //Apply vertical panning
         if (MainCameraUtilities.KeyVertPan != 0)
         {
-            transform.RotateAround(Vector3.zero, transform.right,
+            transform.RotateAround(MainCameraUtilities.CameraOrbitPivot, transform.right,
                 MainCameraUtilities.KeyVertPan * MainCameraUtilities.KeyPanRate * elapsedSeconds);
             changeOffset = true;
         }
@@ -364,7 +359,7 @@ public class MainCameraMovementController : MonoBehaviour
         //Apply camera rig roll
         if (MainCameraUtilities.KeyRoll != 0)
         {
-            transform.RotateAround(Vector3.zero, transform.forward,
+            transform.RotateAround(MainCameraUtilities.CameraOrbitPivot, transform.forward,
                 MainCameraUtilities.KeyRoll * MainCameraUtilities.KeyPanRate * elapsedSeconds);
             MainCameraViewMgr.SetUp();
             changeOffset = true;

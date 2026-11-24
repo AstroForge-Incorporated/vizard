@@ -72,6 +72,8 @@ public class SpacecraftController : MonoBehaviour {
     public float minDimension;
 
     private Vector3 meshCenter;
+    private Vector3 meshCenterLocal;
+    public Vector3 MeshCenterWorld => transform.TransformPoint(meshCenterLocal);
     private VizMessage.Types.ActuatorSettings myGUIActuatorSettings;
     private VizMessage.Types.InstrumentSettings myGUIInstrumentSettings;
     private bool spriteWasOnLastFrame;
@@ -727,6 +729,9 @@ public class SpacecraftController : MonoBehaviour {
 
         meshDimension = Mathf.Max(new float[] {size.x, size.y, size.z});
         meshCenter = spacecraftModel.GetComponent<ModelBounds>().unitModelCenter;
+        meshCenterLocal = spacecraftModel.GetComponentInChildren<Renderer>() != null
+            ? transform.InverseTransformPoint(SpacecraftStateUtilities.CalculateModelBounds(spacecraftModel).center)
+            : Vector3.zero;
 
         if (CelestialBodyStateUtilities.ViewIsSpacecraftLocal)
         {
