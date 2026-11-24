@@ -33,6 +33,8 @@ public class LabelMaker : MonoBehaviour
 	public static readonly char Circumflex = '\u0302';
 	public static int FontSize = 14;
 
+	public static string CapitalizeLabel(string text) => string.IsNullOrEmpty(text)
+		? text : char.ToUpperInvariant(text[0]) + text.Substring(1);
 
 	public static GameObject CreateLabel(string displayText, string parentObjectName, GameObject targetObject, Vector3 localOffset, string labelType, int alignment = 1){
 		GameObject parentHolder = null;

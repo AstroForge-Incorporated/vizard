@@ -37,7 +37,6 @@ public class SettingsPanelMethods : MonoBehaviour
 	public TMP_InputField GUIReferenceResolutionHeight;
 	public Button resetGUIReferenceResolution;
 	private readonly int defaultGUIResolutionWidth = 1366;
-	private readonly int defaultGUIResolutionHeight = 768;
 	public GameObject mainCanvas;
 	[Header (" ")]
 	// Object Scaling
@@ -365,9 +364,7 @@ public class SettingsPanelMethods : MonoBehaviour
 
 	private void ResetGUIReferenceResolution()
 	{
-		GUIReferenceResolutionHeight.text = defaultGUIResolutionHeight.ToString();
-		
-		mainCanvas.GetComponent<CanvasScaler>().referenceResolution = new Vector2(defaultGUIResolutionWidth, defaultGUIResolutionHeight);
+		ChangeGUIReferenceResolution(PersistentUserSettings.DefaultGUIReferenceHeight.ToString());
 	}
 
 	private void ChangeGUIReferenceResolution(string newValue)
